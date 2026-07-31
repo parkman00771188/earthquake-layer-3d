@@ -100,10 +100,11 @@ void main() {
   vColor = mix(col, vec3(1.0), glow * 0.72);
   vAlpha = alpha * pass;
 
-  // The upper clamp sits just above what the widest default view produces, so
-  // it is inert when zoomed out but stops points ballooning when you fly in.
+  // The upper clamp stops points ballooning when you fly in. It scales with the
+  // dot's own requested size (44px at the default curve's M10 of 19.2) so slider
+  // values beyond ~30 keep growing on screen instead of flattening at the cap.
   float px = sz * ${SIZE_BASE} * projectionMatrix[1][1] * uHalfHeight / max(-mv.z, 0.02);
-  gl_PointSize = pass * clamp(px, 0.8, 44.0);
+  gl_PointSize = pass * clamp(px, 0.8, max(44.0, sz * 2.3));
 }
 `;
 

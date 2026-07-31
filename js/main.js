@@ -817,14 +817,15 @@ class App {
     };
     const lo = Math.ceil(this.meta.mag_min);
     const hi = Math.floor(this.meta.mag_max);
-    const marks = [lo, ...[4, 6, 8].filter((v) => v > lo && v < hi), hi]
-      .filter((v, i, a) => a.indexOf(v) === i);
+    const marks = [];
+    for (let m = lo; m <= hi; m++) marks.push(m);
 
     $('legend-mags').innerHTML = marks.map((m, i) => {
       const sz = magSize(m);
-      const px = Math.min(18, 3 + (sz - 1) * 0.9).toFixed(1);
+      const px = sz <= 0 ? 0 : Math.min(20, Math.max(2, 3 + (sz - 1) * 0.9)).toFixed(1);
       const label = i === marks.length - 1 ? `M${m}+` : `M${m}`;
-      return `<span><i style="--d:${px}px"></i>${label}</span>`;
+      const dim = sz <= 0 ? ' style="opacity:.35"' : '';
+      return `<span${dim}><i style="--d:${px}px"></i>${label}</span>`;
     }).join('');
   }
 

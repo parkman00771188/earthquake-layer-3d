@@ -19,11 +19,12 @@ const SIZE_BASE = 0.115;          // world-unit radius for the smallest event
 const DAY = 86400;
 
 /**
- * Default dot size at each integer magnitude M1..M10, in units of the smallest
- * dot. Sampled from the original curve 1 + (m - 1.73)^1.7 * 0.5 so the default
- * look is unchanged; events between integers interpolate linearly.
+ * Default dot size at each integer magnitude band M1..M10 -- the hand-tuned
+ * house style (steep growth toward the great quakes), applied to fresh visits
+ * and restored by the panel's reset button.
  */
-export const MAG_SIZE_DEFAULTS = [1.0, 1.1, 1.8, 3.0, 4.8, 6.9, 9.5, 12.4, 15.6, 19.2];
+export const MAG_SIZE_DEFAULTS =
+  [0.061, 0.15, 0.5, 1.128, 2.794, 6.425, 10.057, 24.805, 83.129, 120];
 
 /**
  * Slack applied to every range comparison, on the GPU and the CPU alike.

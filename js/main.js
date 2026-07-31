@@ -123,7 +123,7 @@ class App {
       playing: false,
       speed: 365,
       loop: true,
-      exag: 2.5,
+      exag: 1.6,
       colorMode: this.saved.colorMode ?? 0,
     };
     this.view = 'japan';               // 'japan' | 'globe'; Japan is the opener
@@ -688,7 +688,7 @@ class App {
         el.dispatchEvent(new Event('input', { bubbles: true }));
       };
       MAG_SIZE_DEFAULTS.forEach((d, i) => set(`in-msize-${i + 1}`, d));
-      set('in-msize-all', 1);
+      set('in-msize-all', 0.7);
     });
     slider('in-sharp', (v) => {
       // 100% = hard-edged disc, 0% = wide glow.
@@ -1127,7 +1127,7 @@ class App {
       if (this.view === 'globe' && this.globe) {
         const tg = performance.now();
         if (this.statsDue && tg - statAt > 110) { statAt = tg; this.updateStats(); }
-        this.globe.layer?.syncFrom(this.quakes, s);
+        this.globe.sync(this.quakes, s);
         this.globe.update(dt);
         this.renderer.render(this.globe.scene, this.globe.camera);
         return;

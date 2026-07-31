@@ -167,7 +167,7 @@ class GlobeLayer {
       uSoft: { value: shared.uSoft.value },
       uOpacity: { value: shared.uOpacity.value },
       uHalfHeight: { value: 475 },
-      uDepthExag: { value: 2.5 },
+      uDepthExag: { value: 1.6 },
       uColorMode: { value: shared.uColorMode.value },
       uTimeSpan: { value: Math.max(1, timeSpanDays) },
     };
@@ -369,10 +369,12 @@ export class GlobeView {
       enabled: false,
     });
 
-    this.scene.add(new THREE.Mesh(
-      new THREE.SphereGeometry(R * 0.985, 96, 48),
+    this.body = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 96, 48),
       new THREE.MeshBasicMaterial({ color: 0x080c14 }),
-    ));
+    );
+    this.body.scale.setScalar(R * 0.82);
+    this.scene.add(this.body);
 
     // Filled land, same recipe as the Japan map layer: flat colour whose
     // shape comes from a baked land/water alphaMap, opacity slider-driven.
@@ -443,6 +445,17 @@ export class GlobeView {
       }
     })();
     return this.loading;
+  }
+
+  /**
+   * Per-frame state mirror. The opaque core must sit beneath the deepest
+   * hypocentre at the current exaggeration -- any bigger and it swallows every
+   * quake below a few tens of km, erasing the depth dimension from the globe.
+   */
+  sync(japan, state) {
+    const pull = (700 / 6371) * state.exag;
+    this.body.scale.setScalar(Math.max(R * (1 - pull) * 0.985, R * 0.05));
+    this.layer?.syncFrom(japan, state);
   }
 
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }

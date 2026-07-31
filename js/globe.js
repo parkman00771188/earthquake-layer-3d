@@ -391,7 +391,7 @@ export class GlobeView {
     this.land.renderOrder = -10;
     this.land.visible = false;             // until a style + texture exist
     this.scene.add(this.land);
-    this.mapStyle = 'fill';
+    this.mapStyle = 'sat';
 
     this.layer = null;
     this.meta = null;

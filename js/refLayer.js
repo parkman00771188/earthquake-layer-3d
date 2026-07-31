@@ -103,7 +103,7 @@ export class RefLayer {
     this.land.frustumCulled = false;
     this.land.visible = false;             // shown once a style + texture exist
     this.group.add(this.land);
-    this.mapStyle = 'fill';
+    this.mapStyle = 'sat';
 
     if (!meta?.land?.path) {
       this.landAvailable = false;

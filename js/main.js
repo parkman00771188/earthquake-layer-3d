@@ -125,7 +125,7 @@ class App {
       loop: true,
       exag: 1.6,
       colorMode: this.saved.colorMode ?? 0,
-      mapStyle: this.saved.mapStyle ?? 'fill',
+      mapStyle: this.saved.mapStyle ?? 'sat',
     };
     this.view = 'japan';               // 'japan' | 'globe'; Japan is the opener
 
@@ -795,7 +795,7 @@ class App {
       this.globe?.setMapStyle(v);
       $('row-land').classList.toggle('hide', v === 'off');
       this.dirty = true;
-    }, this.saved.mapStyle ?? 'fill');
+    }, this.saved.mapStyle ?? 'sat');
     slider('in-land', (v) => {
       this.ref.setLandOpacity(v / 100);
       this.globe?.setLandOpacity(v / 100);

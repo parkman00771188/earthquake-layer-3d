@@ -36,7 +36,9 @@ def main() -> int:
             continue
         qs = urllib.parse.urlencode({
             "SERVICE": "WMS", "REQUEST": "GetMap", "VERSION": "1.3.0",
-            "LAYERS": "BlueMarble_NextGeneration", "CRS": "EPSG:4326",
+            # The _ShadedRelief_Bathymetry variant is the one where the ocean
+            # floor (ridges, trenches) is actually drawn, not flat dark blue.
+            "LAYERS": "BlueMarble_ShadedRelief_Bathymetry", "CRS": "EPSG:4326",
             "BBOX": bbox, "WIDTH": w, "HEIGHT": h,
             "FORMAT": "image/jpeg", "STYLES": "",
         })

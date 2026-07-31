@@ -19,6 +19,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -141,12 +142,21 @@ def main() -> int:
     commit = request("POST", f"{API}/repos/{OWNER}/{REPO}/git/commits", token,
                      {"message": message, "tree": new_tree["sha"], "parents": parents})
 
-    if parents:
-        request("PATCH", f"{API}/repos/{OWNER}/{REPO}/git/refs/heads/{branch}", token,
-                {"sha": commit["sha"], "force": False})
-    else:
-        request("POST", f"{API}/repos/{OWNER}/{REPO}/git/refs", token,
-                {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
+    # A ref update can 422 ("Object does not exist") for a few seconds while
+    # the just-created commit replicates on GitHub's side; retry briefly.
+    for attempt in range(3):
+        try:
+            if parents:
+                request("PATCH", f"{API}/repos/{OWNER}/{REPO}/git/refs/heads/{branch}",
+                        token, {"sha": commit["sha"], "force": False})
+            else:
+                request("POST", f"{API}/repos/{OWNER}/{REPO}/git/refs", token,
+                        {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
+            break
+        except urllib.error.HTTPError as e:
+            if e.code != 422 or attempt == 2:
+                raise
+            time.sleep(3)
 
     print(f"[upload] done: https://github.com/{OWNER}/{REPO}/commit/{commit['sha'][:12]}")
     return 0

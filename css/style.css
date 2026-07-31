@@ -58,6 +58,49 @@ code {
 #labels span.depth { color: #8fa6c4; }
 #labels span.strong { color: var(--ink-dim); font-weight: 600; }
 
+/* ── entry gate ────────────────────────────────────────────── */
+#gate {
+  position: fixed; inset: 0; z-index: 2000;
+  display: grid; place-items: center;
+  background: #000;
+  transition: opacity .7s ease;
+}
+#gate.closing { opacity: 0; pointer-events: none; }
+#gate .hide { display: none; }
+#gate-fx { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gate-center { position: relative; z-index: 1; text-align: center; padding: 0 20px; }
+.gate-center h1 {
+  font-size: clamp(24px, 3.2vw, 38px); font-weight: 750; color: #fff;
+  line-height: 1.45; letter-spacing: .01em; margin-bottom: 30px;
+}
+#gate-form { display: flex; gap: 8px; justify-content: center; }
+#gate-pass {
+  width: 190px; padding: 10px 13px; border-radius: 8px;
+  border: 1px solid #3a3d46; background: #f2f3f5; color: #16181d;
+  font: 500 13px/1 var(--sans); outline: none;
+}
+#gate-pass::placeholder { color: #8a8f99; }
+#gate-pass:focus { box-shadow: 0 0 0 2px rgba(53,214,245,.35); }
+#gate-pass.shake { animation: gate-shake .16s 2; border-color: #e5484d; }
+@keyframes gate-shake {
+  25% { transform: translateX(-7px); }
+  75% { transform: translateX(7px); }
+}
+#gate button {
+  padding: 10px 20px; border-radius: 8px; cursor: pointer;
+  background: #1b1e25; color: #fff; border: 1px solid #383c46;
+  font: 600 12.5px/1 var(--sans); transition: all .15s;
+}
+#gate button:hover { border-color: #565b68; }
+#gate-enter { background: #fff; color: #000; min-width: 130px; }
+#gate-enter:hover { background: #e8e8ea; }
+#gate-typed::after {
+  content: ""; display: inline-block; width: 2.5px; height: .95em;
+  background: #fff; margin-left: 4px; vertical-align: -0.08em;
+  animation: gate-blink 1s steps(1) infinite;
+}
+@keyframes gate-blink { 50% { opacity: 0; } }
+
 /* ── loader ────────────────────────────────────────────────── */
 #loader {
   position: fixed; inset: 0; z-index: 90;

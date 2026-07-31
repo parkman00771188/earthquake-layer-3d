@@ -12,6 +12,23 @@
 </head>
 <body>
 
+<!-- ── entry gate ──────────────────────────────────────────── -->
+<div id="gate">
+  <canvas id="gate-fx"></canvas>
+  <div class="gate-center" id="gate-lock">
+    <h1>Activate the Earth.<br>Watch the Quakes.</h1>
+    <form id="gate-form">
+      <input type="password" id="gate-pass" placeholder="password"
+             autocomplete="off" spellcheck="false" aria-label="비밀번호">
+      <button type="submit">Enter</button>
+    </form>
+  </div>
+  <div class="gate-center hide" id="gate-hello">
+    <h1 id="gate-typed"></h1>
+    <button id="gate-enter" class="hide">Enter</button>
+  </div>
+</div>
+
 <canvas id="stage"></canvas>
 
 <!-- projected 3D axis labels -->
@@ -305,6 +322,7 @@
   <p class="hint" id="fail-hint"></p>
 </div>
 
+<script type="module" src="js/gate.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

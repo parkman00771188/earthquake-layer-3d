@@ -572,9 +572,12 @@ class App {
         this.dirty = true;
       });
     }
-    // -/+ nudge buttons flanking every size slider (one native step per click).
-    for (const row of document.querySelectorAll('.mag-sizes label')) {
+    // -/+ nudge buttons flanking every single-handle slider (one native step
+    // per click). Dual-range tracks are left alone: with two handles there is
+    // no unambiguous target for a nudge.
+    for (const row of document.querySelectorAll('.mag-sizes label, #panel label.row')) {
       const input = row.querySelector('input[type=range]');
+      if (!input) continue;
       const mk = (txt, dir) => {
         const b = document.createElement('button');
         b.type = 'button';
@@ -587,8 +590,10 @@ class App {
         });
         return b;
       };
-      input.before(mk('−', -1));
-      input.after(mk('+', +1));
+      const wrap = document.createElement('div');
+      wrap.className = 'nudge';
+      input.replaceWith(wrap);
+      wrap.append(mk('−', -1), input, mk('+', +1));
     }
 
     $('btn-msize-reset').addEventListener('click', () => {

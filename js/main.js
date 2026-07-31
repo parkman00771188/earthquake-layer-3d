@@ -742,6 +742,7 @@ class App {
       this.persist = () => {};      // stop re-saving before the reload
     });
     $('sel-speed').addEventListener('change', (e) => { s.speed = +e.target.value; });
+    s.speed = +$('sel-speed').value;   // apply the restored selection, not the default
     check('ck-loop', (on) => { s.loop = on; });
 
     /* panel + card */

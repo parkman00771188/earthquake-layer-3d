@@ -30,6 +30,7 @@ echo.
 if %RC% NEQ 0 (
   echo [!] build failed with code %RC%
 ) else (
+  %PY% scripts\archive_raw.py
   echo [ok] worldwide data updated. Reload the page with Ctrl+F5.
 )
 

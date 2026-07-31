@@ -1,0 +1,26 @@
+{
+  "mode_of_last_run": "incremental",
+  "last_run_utc": "2026-07-31T04:04:41+00:00",
+  "event_count": 1227754,
+  "per_source": {
+    "isc": 1224913,
+    "usgs": 2841
+  },
+  "catalog_start": "1975-01-01T05:46:32.235Z",
+  "catalog_end": "2026-07-30T16:58:35.880Z",
+  "handoff": "2024-10-01",
+  "plan_key": "isc<2024-10-01|usgs>=2024-10-01",
+  "completed_through": "2026-08-01T04:04:30",
+  "scan_finished": true,
+  "region": {
+    "name": "Japan and surrounding seas",
+    "minlatitude": 22,
+    "maxlatitude": 48,
+    "minlongitude": 120,
+    "maxlongitude": 152
+  },
+  "minmagnitude": {
+    "isc": 2.0,
+    "usgs": 3.0
+  }
+}

@@ -17,6 +17,7 @@ if %RC% NEQ 0 (
   echo [!] update failed with code %RC%
   echo     tip: run  update.bat --resume  to continue an interrupted scan
 ) else (
+  %PY% scripts\archive_raw.py
   echo [ok] data updated. Reload the page with Ctrl+F5.
 )
 

@@ -1,0 +1,62 @@
+{
+  "region": {
+    "name": "Japan and surrounding seas",
+    "minlatitude": 22,
+    "maxlatitude": 48,
+    "minlongitude": 120,
+    "maxlongitude": 152
+  },
+
+  "catalog": {
+    "starttime": "1975-01-01",
+    "eventtype": "earthquake",
+
+    "_handoff": [
+      "Two sources are stitched at this date. ISC's reviewed Bulletin carries the",
+      "JMA catalogue (complete to about M2 around Japan) but lags ~20 months, so",
+      "it covers everything BEFORE the handoff. USGS ComCat is current to",
+      "yesterday but holds nothing below M3 in this region, so it covers the tail.",
+      "Refresh the boundary with:  python scripts/fetch_quakes.py --detect-handoff"
+    ],
+    "handoff": "2024-10-01"
+  },
+
+  "sources": {
+    "isc": {
+      "name": "ISC Bulletin (includes JMA)",
+      "endpoint": "http://www.isc.ac.uk/fdsnws/event/1/query",
+      "format": "isc-text",
+      "minmagnitude": 2.0,
+      "_max_events_per_request": [
+        "ISC hard-caps a response at 55000 events and answers HTTP 413 above",
+        "that. Staying under the cap means the splitter is driven by our own",
+        "row count instead of a wasted round trip that gets rejected."
+      ],
+      "max_events_per_request": 45000,
+      "request_timeout_sec": 900,
+      "pause_between_requests_sec": 3,
+      "attribution": "International Seismological Centre (2024), ISC Bulletin, doi:10.31905/D808B830"
+    },
+    "usgs": {
+      "name": "USGS ANSS ComCat",
+      "endpoint": "https://earthquake.usgs.gov/fdsnws/event/1/query",
+      "format": "usgs-csv",
+      "minmagnitude": 3.0,
+      "max_events_per_request": 18000,
+      "request_timeout_sec": 180,
+      "pause_between_requests_sec": 0,
+      "attribution": "USGS Earthquake Hazards Program (public domain)"
+    }
+  },
+
+  "update": {
+    "overlap_days": 45,
+    "retries": 4,
+    "handoff_probe_months": 36,
+    "handoff_min_small_events": 100
+  },
+
+  "projection": {
+    "reference_latitude": 35.0
+  }
+}

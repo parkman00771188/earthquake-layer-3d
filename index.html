@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일본 주변 지진 4D · 1975–2026</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305070d'/%3E%3Ccircle cx='11' cy='11' r='4' fill='%23ff2b4d'/%3E%3Ccircle cx='20' cy='17' r='3' fill='%23ffe14d'/%3E%3Ccircle cx='13' cy='23' r='2.5' fill='%2338bdf8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<!-- projected 3D axis labels -->
+<div id="labels" aria-hidden="true"></div>
+
+<!-- ── loading ─────────────────────────────────────────────── -->
+<div id="loader">
+  <div class="loader-inner">
+    <div class="loader-title">일본 주변 지진 4D</div>
+    <div class="loader-bar"><i id="loader-fill"></i></div>
+    <div class="loader-msg" id="loader-msg">데이터 불러오는 중…</div>
+  </div>
+</div>
+
+<!-- ── header ──────────────────────────────────────────────── -->
+<header id="head">
+  <h1>일본 주변 지진 <span>4D</span></h1>
+  <p class="sub" id="head-sub">M3.0+ · 1975–2026 · USGS ANSS ComCat</p>
+  <dl class="readout">
+    <div><dt>표시 중</dt><dd id="stat-visible">–</dd></div>
+    <div><dt>전체</dt><dd id="stat-total">–</dd></div>
+    <div><dt>최대</dt><dd id="stat-max">–</dd></div>
+  </dl>
+</header>
+
+<!-- ── rolling event list ──────────────────────────────────── -->
+<section id="feed">
+  <button id="feed-toggle" aria-expanded="true">
+    <span class="caret">▾</span>
+    <b>최근 지진</b>
+    <em id="feed-count">–</em>
+  </button>
+  <div class="feed-body">
+    <ol id="feed-list"></ol>
+    <p class="feed-empty" id="feed-empty" hidden>이 시점 이전에 표시할 지진이 없습니다.</p>
+    <p class="feed-note">현재 시점 기준 최근 50건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다</p>
+  </div>
+</section>
+
+<!-- ── depth legend ────────────────────────────────────────── -->
+<div id="legend">
+  <div class="legend-head" id="legend-title">깊이 (km)</div>
+  <div class="legend-ramp" id="legend-ramp"></div>
+  <div class="legend-ticks" id="legend-ticks"></div>
+  <div class="legend-mags" id="legend-mags"></div>
+</div>
+
+<!-- ── control panel ───────────────────────────────────────── -->
+<aside id="panel">
+  <button id="panel-toggle" title="패널 접기/펴기" aria-label="패널 접기/펴기">⟩</button>
+  <div class="panel-scroll">
+
+    <section>
+      <h2>표시 방식</h2>
+      <div class="seg" id="seg-mode" role="radiogroup" aria-label="표시 방식">
+        <button data-v="accumulate" class="on">누적</button>
+        <button data-v="window">이동 구간</button>
+      </div>
+      <p class="hint" id="mode-hint">시작부터 현재 시점까지 모든 지진이 남습니다. 점이 쌓이며 밀집 구역이 드러납니다.</p>
+
+      <label class="row" id="row-window">
+        <span>구간 길이</span>
+        <output id="out-window">1년</output>
+        <input type="range" id="in-window" min="0" max="10" step="1" value="6"></label>
+
+      <label class="row" id="row-fade">
+        <span>과거 지진 진하기</span>
+        <output id="out-fade">80%</output>
+        <input type="range" id="in-fade" min="5" max="100" step="5" value="80">
+      </label>
+
+      <label class="row">
+        <span>최근 강조 기간</span>
+        <output id="out-glow">60일</output>
+        <input type="range" id="in-glow" min="0" max="730" step="10" value="60">
+      </label>
+    </section>
+
+    <section>
+      <h2>기간</h2>
+      <div class="dates">
+        <label><span>시작</span><input type="date" id="in-date-a"></label>
+        <label><span>끝</span><input type="date" id="in-date-b"></label>
+      </div>
+      <div class="chips" id="span-presets">
+        <button data-span="all" class="on">전체</button>
+        <button data-span="10y">최근 10년</button>
+        <button data-span="1y">최근 1년</button>
+      </div>
+      <p class="hint">선택한 기간만 그려지고 재생도 그 안에서 반복됩니다.
+      아래 시간바의 <b>양 끝 손잡이</b>를 끌어 조절할 수도 있습니다.</p>
+    </section>
+
+    <section>
+      <h2>필터</h2>
+      <div class="row dual">
+        <span>규모 M</span>
+        <output id="out-mag">3.0 – 9.1</output>
+        <div class="dual-track">
+          <input type="range" id="in-mag-lo" min="3" max="9.1" step="0.1" value="3">
+          <input type="range" id="in-mag-hi" min="3" max="9.1" step="0.1" value="9.1">
+        </div>
+      </div>
+      <div class="row dual">
+        <span>깊이 km</span>
+        <output id="out-depth">0 – 700</output>
+        <div class="dual-track">
+          <input type="range" id="in-depth-lo" min="0" max="700" step="5" value="0">
+          <input type="range" id="in-depth-hi" min="0" max="700" step="5" value="700">
+        </div>
+      </div>
+      <div class="chips" id="depth-presets">
+        <button data-lo="0" data-hi="700" class="on">전체</button>
+        <button data-lo="0" data-hi="70">얕은</button>
+        <button data-lo="70" data-hi="300">중간</button>
+        <button data-lo="300" data-hi="700">깊은</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>시각</h2>
+      <label class="row">
+        <span>깊이 과장</span>
+        <output id="out-exag">2.5×</output>
+        <input type="range" id="in-exag" min="0.5" max="8" step="0.1" value="2.5">
+      </label>
+      <label class="row">
+        <span>점 크기</span>
+        <output id="out-size">1.0×</output>
+        <input type="range" id="in-size" min="0.3" max="3" step="0.05" value="1">
+      </label>
+      <div class="field">
+        <span>규모별 점 크기 <em>(0 = 숨김)</em></span>
+        <div class="mag-sizes">
+          <label class="msize-master"><span>전체 배율</span><input type="range" id="in-msize-all" min="0.1" max="3" step="0.05" value="1"><output id="out-msize-all">1.00×</output></label>
+          <label><span>M1</span><input type="range" id="in-msize-1" min="0" max="30" step="0.1" value="1"><output id="out-msize-1">1.0</output></label>
+          <label><span>M2</span><input type="range" id="in-msize-2" min="0" max="30" step="0.1" value="1.1"><output id="out-msize-2">1.1</output></label>
+          <label><span>M3</span><input type="range" id="in-msize-3" min="0" max="30" step="0.1" value="1.8"><output id="out-msize-3">1.8</output></label>
+          <label><span>M4</span><input type="range" id="in-msize-4" min="0" max="30" step="0.1" value="3"><output id="out-msize-4">3.0</output></label>
+          <label><span>M5</span><input type="range" id="in-msize-5" min="0" max="30" step="0.1" value="4.8"><output id="out-msize-5">4.8</output></label>
+          <label><span>M6</span><input type="range" id="in-msize-6" min="0" max="30" step="0.1" value="6.9"><output id="out-msize-6">6.9</output></label>
+          <label><span>M7</span><input type="range" id="in-msize-7" min="0" max="30" step="0.1" value="9.5"><output id="out-msize-7">9.5</output></label>
+          <label><span>M8</span><input type="range" id="in-msize-8" min="0" max="30" step="0.1" value="12.4"><output id="out-msize-8">12.4</output></label>
+          <label><span>M9</span><input type="range" id="in-msize-9" min="0" max="30" step="0.1" value="15.6"><output id="out-msize-9">15.6</output></label>
+          <label><span>M10</span><input type="range" id="in-msize-10" min="0" max="30" step="0.1" value="19.2"><output id="out-msize-10">19.2</output></label>
+        </div>
+        <div class="chips"><button id="btn-msize-reset">기본값으로</button></div>
+      </div>
+      <label class="row">
+        <span>선명도</span>
+        <output id="out-sharp">70%</output>
+        <input type="range" id="in-sharp" min="0" max="100" step="5" value="70">
+      </label>
+      <label class="row">
+        <span>불투명도</span>
+        <output id="out-opacity">92%</output>
+        <input type="range" id="in-opacity" min="10" max="100" step="2" value="92">
+      </label>
+
+      <div class="field">
+        <span>색상 기준</span>
+        <div class="seg" id="seg-color" role="radiogroup" aria-label="색상 기준">
+          <button data-v="0" class="on">깊이</button>
+          <button data-v="1">규모</button>
+          <button data-v="2">시간</button>
+          <button data-v="3">밀도</button>
+        </div>
+      </div>
+
+      <div class="checks">
+        <label><input type="checkbox" id="ck-additive"> 발광 합성 <em>(밀집 강조)</em></label>
+        <label><input type="checkbox" id="ck-spin"> 자동 회전</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>지도</h2>
+      <div class="checks">
+        <label><input type="checkbox" id="ck-land" checked> 지도 (땅 채우기)</label>
+      </div>
+      <label class="row" id="row-land">
+        <span>지도 불투명도</span>
+        <output id="out-land">50%</output>
+        <input type="range" id="in-land" min="0" max="100" step="5" value="50">
+      </label>
+      <div class="checks">
+        <label><input type="checkbox" id="ck-coast" checked> 해안선</label>
+        <label><input type="checkbox" id="ck-admin" checked> 행정 경계 <em>(도·현)</em></label>
+        <label><input type="checkbox" id="ck-plates" checked> 판 경계</label>
+        <label><input type="checkbox" id="ck-box" checked> 깊이 상자 · 격자</label>
+      </div>
+      <p class="hint" id="land-hint"></p>
+    </section>
+
+    <section>
+      <h2>시점</h2>
+      <div class="chips wide" id="view-presets">
+        <button data-v="iso" class="on">입체</button>
+        <button data-v="top">위 (지도)</button>
+        <button data-v="south">남→북 단면</button>
+        <button data-v="east">동→서 단면</button>
+        <button data-v="trench">일본해구</button>
+      </div>
+      <p class="hint">드래그 회전 · 휠 확대 · 우클릭 드래그 이동. 점을 클릭하면 상세 정보가 나옵니다.</p>
+    </section>
+
+    <section id="upd">
+      <h2>최근 갱신 내역</h2>
+      <p class="upd-sum" id="upd-summary">확인 중…</p>
+      <button id="upd-toggle" class="ghost wide">내역 보기</button>
+      <ol class="upd-list" id="upd-list"></ol>
+    </section>
+
+    <section class="meta">
+      <h2>데이터</h2>
+      <div id="meta-sources"></div>
+      <div class="kv"><span>수록 기간</span><b id="meta-span">–</b></div>
+      <div class="kv"><span>갱신 시각</span><b id="meta-built">–</b></div>
+      <p class="caveat" id="meta-caveat" hidden></p>
+      <p class="hint">최신 지진을 반영하려면 <code>update.bat</code> 실행 (또는 <code>python scripts/update.py</code>).</p>
+      <div class="saved-row">
+        <span id="saved-note">설정은 이 브라우저에 자동 저장됩니다</span>
+        <button id="btn-forget" class="ghost">초기화</button>
+      </div>
+    </section>
+
+  </div>
+</aside>
+
+<!-- ── timeline ────────────────────────────────────────────── -->
+<footer id="timeline">
+  <div class="tl-left">
+    <button id="btn-play" class="play" aria-label="재생">▶</button>
+    <div class="tl-date">
+      <b id="tl-date">–</b>
+      <span id="tl-range">–</span>
+    </div>
+  </div>
+  <div class="tl-track" id="tl-track">
+    <canvas id="tl-canvas"></canvas>
+    <div class="tl-grip" id="tl-grip-a" title="기간 시작"></div>
+    <div class="tl-grip" id="tl-grip-b" title="기간 끝"></div>
+    <div class="tl-head" id="tl-head"></div>
+  </div>
+  <div class="tl-right">
+    <select id="sel-speed" aria-label="재생 속도">
+      <option value="30">1개월 / 초</option>
+      <option value="91">3개월 / 초</option>
+      <option value="365" selected>1년 / 초</option>
+      <option value="1095">3년 / 초</option>
+      <option value="3650">10년 / 초</option>
+    </select>
+    <label class="mini"><input type="checkbox" id="ck-loop" checked> 반복</label>
+    <button id="btn-reset" class="ghost">처음으로</button>
+  </div>
+</footer>
+
+<!-- ── event tooltip / detail card ─────────────────────────── -->
+<div id="tip" hidden></div>
+<div id="card" hidden>
+  <button id="card-close" aria-label="닫기">×</button>
+  <div class="card-mag"><b id="card-mag">–</b><span id="card-magtype">M</span></div>
+  <div class="card-place" id="card-place">–</div>
+  <dl class="card-grid">
+    <div><dt>발생 (UTC)</dt><dd id="card-utc">–</dd></div>
+    <div><dt>발생 (일본 시각)</dt><dd id="card-jst">–</dd></div>
+    <div><dt>깊이</dt><dd id="card-depth">–</dd></div>
+    <div><dt>위치</dt><dd id="card-loc">–</dd></div>
+  </dl>
+  <a id="card-link" href="#" target="_blank" rel="noopener">USGS 상세 페이지 ↗</a>
+</div>
+
+<div id="fail" hidden>
+  <h2 id="fail-title">데이터를 불러올 수 없습니다</h2>
+  <p id="fail-msg"></p>
+  <p class="hint" id="fail-hint"></p>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

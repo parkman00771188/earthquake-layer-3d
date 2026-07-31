@@ -1,0 +1,1081 @@
+/**
+ * 일본 주변 지진 4D — application entry point.
+ *
+ * Wires the data payload, the three.js scene, the timeline and the control panel
+ * together. Rendering is on-demand: a frame is drawn while playing, while the
+ * camera moves, or whenever a control changes.
+ */
+
+import * as THREE from 'three';
+import { OrbitControls } from '../vendor/OrbitControls.js';
+
+import { loadData, loadChanges } from './data.js';
+import { makeProjection, SCALE } from './projection.js';
+import { QuakeLayer, MAG_SIZE_DEFAULTS } from './quakeLayer.js';
+import { RefLayer } from './refLayer.js';
+import { AxisLabels } from './labels.js';
+import { Timeline, MIN_SPAN_DAYS } from './timeline.js';
+import { Picker } from './picking.js';
+import { SelectionMarker } from './marker.js';
+import { EventFeed, ChangeFeed } from './feed.js';
+import * as store from './store.js';
+import {
+  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient,
+} from './palette.js';
+
+const $ = (id) => document.getElementById(id);
+const nf = new Intl.NumberFormat('ko-KR');
+
+/** Rolling-window lengths, as [days, label]. The slider indexes this list so
+ *  every stop is a round number instead of an artefact of the step size. */
+const WINDOW_PRESETS = [
+  [7, '1주'], [14, '2주'], [30, '1개월'], [90, '3개월'], [180, '6개월'],
+  [270, '9개월'], [365, '1년'], [730, '2년'], [1825, '5년'],
+  [3650, '10년'], [7300, '20년'],
+];
+
+/** Panel controls whose raw value is persisted verbatim. */
+const SAVED_INPUTS = [
+  'in-window', 'in-fade', 'in-glow',
+  'in-mag-lo', 'in-mag-hi', 'in-depth-lo', 'in-depth-hi',
+  'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
+  'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
+  'ck-additive', 'ck-land', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box',
+  'ck-spin', 'ck-loop',
+  'sel-speed',
+];
+
+const DAY_MS = 86400000;
+
+async function boot() {
+  let data;
+  try {
+    data = await loadData((msg, frac) => {
+      $('loader-msg').textContent = msg;
+      $('loader-fill').style.width = `${(frac * 100).toFixed(1)}%`;
+    });
+  } catch (err) {
+    console.error(err);
+    $('loader').classList.add('done');
+    showFailure(err);
+    return;
+  }
+  new App(data).start();
+}
+
+/**
+ * Explain a load failure in terms of the thing that is actually wrong.
+ *
+ * The generic "you must use a local server" advice is only right for a transport
+ * failure. When the payload files disagree with each other, that advice sends
+ * the user chasing the wrong problem.
+ */
+function showFailure(err) {
+  const msg = String(err?.message ?? err);
+  const isTransport = err instanceof TypeError            // fetch() rejected outright
+    || /HTTP \d{3}/.test(msg)
+    || location.protocol === 'file:';
+
+  $('fail').hidden = false;
+  $('fail-msg').textContent = msg;
+
+  if (err?.kind === 'stale-build') {
+    $('fail-title').textContent = '데이터 파일이 서로 맞지 않습니다';
+    $('fail-hint').innerHTML =
+      '빌드가 중간에 끊겼을 때 생깁니다. <code>update.bat --build-only</code> 를 실행해 '
+      + '데이터를 다시 만든 뒤 <b>Ctrl+F5</b> 로 새로고침하세요. '
+      + '(수집한 원본 <code>data/raw/catalog.csv</code> 는 그대로이므로 다시 받을 필요는 없습니다.)';
+  } else if (isTransport) {
+    $('fail-title').textContent = '데이터를 불러올 수 없습니다';
+    $('fail-hint').innerHTML =
+      '이 사이트는 로컬 서버에서 열어야 합니다. <code>serve.bat</code> 을 실행한 뒤 '
+      + '<code>http://localhost:8080</code> 으로 접속하세요. '
+      + '(<code>file://</code> 로는 동작하지 않습니다.)';
+  } else {
+    $('fail-title').textContent = '데이터를 불러올 수 없습니다';
+    $('fail-hint').innerHTML =
+      '<code>update.bat --build-only</code> 로 데이터를 다시 만들어 보세요. '
+      + '문제가 계속되면 브라우저 개발자 콘솔(F12)의 오류 메시지를 확인하세요.';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+
+class App {
+  constructor(data) {
+    this.data = data;
+    this.meta = data.meta;
+    this.proj = makeProjection(data.meta);
+    this.saved = store.load();
+
+    const T = data.totalDays;
+    const [ra, rb] = sanitizeRange(this.saved.range, T);
+    this.state = {
+      mode: this.saved.mode ?? 'accumulate',
+      windowDays: 365,
+      rangeStart: ra,
+      rangeEnd: rb,
+      // Open on the fully accumulated cloud unless a position was remembered.
+      now: clamp(this.saved.now ?? rb, ra, rb),
+      playing: false,
+      speed: 365,
+      loop: true,
+      exag: 2.5,
+      colorMode: this.saved.colorMode ?? 0,
+    };
+
+    this.persist = store.debounce(() => this.saveNow(), 450);
+
+    this.buildScene();
+    this.buildTimeline();
+    this.buildFeeds();
+    this.restoreInputs();
+    this.bindUI();
+    this.fillMeta();
+    if (!this.restoreCamera()) this.applyPreset('iso');
+    this.dirty = true;
+  }
+
+  /* ── event lists ────────────────────────────────────────── */
+
+  buildFeeds() {
+    this.feed = new EventFeed({
+      root: $('feed'),
+      list: $('feed-list'),
+      empty: $('feed-empty'),
+      countEl: $('feed-count'),
+      toggle: $('feed-toggle'),
+      layer: this.quakes,
+      data: this.data,
+      limit: 50,
+      onPick: (i) => this.focusEvent(i),
+    });
+    this.feed.onToggle = (open) => {
+      $('feed-toggle').setAttribute('aria-expanded', String(open));
+      this.recenter();
+      this.persist();
+    };
+    if (this.saved.feedOpen === false) this.feed.setOpen(false);
+
+    this.changeFeed = new ChangeFeed({
+      root: $('upd'),
+      summary: $('upd-summary'),
+      list: $('upd-list'),
+      toggle: $('upd-toggle'),
+      onPick: (i) => this.focusEvent(i),
+    });
+    loadChanges().then((c) => this.changeFeed.setData(c));
+  }
+
+  /**
+   * Centre a specific event: make sure it is inside the drawn range, mark it in
+   * 3D and open its detail card. The playhead only moves when the event is not
+   * already on screen, so clicking a row in the rolling list does not rewind.
+   */
+  focusEvent(i) {
+    const s = this.state;
+    const days = this.data.days(i);
+
+    if (days < s.rangeStart || days > s.rangeEnd) {
+      // Widen the period just enough to contain it.
+      this.setRange([Math.min(s.rangeStart, days - 1), Math.max(s.rangeEnd, days + 1)]);
+      markChip($('span-presets'), () => false);
+    }
+    if (!this.quakes.isDrawn(i)) {
+      this.setPlaying(false);
+      s.now = clamp(days, s.rangeStart, s.rangeEnd);
+      this.syncTime();
+    }
+
+    this.marker.show(i, this.quakes.positions);
+    this.feed.setSelected(i);
+    this.showCard(i);
+    this.flyTo(this.worldPos(i));
+    markChip($('view-presets'), () => false);   // no longer a preset framing
+    this.dirty = true;
+  }
+
+  /* ── persistence ────────────────────────────────────────── */
+
+  /** Push remembered raw values into the DOM before the handlers are bound,
+   *  so binding alone brings the scene up in the saved state. */
+  restoreInputs() {
+    const saved = this.saved.inputs;
+    if (saved) {
+      for (const id of SAVED_INPUTS) {
+        const el = $(id);
+        const v = saved[id];
+        if (!el || v == null) continue;
+        if (el.type === 'checkbox') el.checked = !!v;
+        else el.value = v;
+      }
+    }
+    if (this.saved.panelCollapsed) $('panel').classList.add('collapsed');
+    // Chips are shortcuts, not state: mark the matching one without firing it.
+    // (The depth chips are matched at the end of bindUI, once the dual-range
+    // values have been restored.)
+    markChip($('span-presets'), (b) => b.dataset.span === this.saved.spanPreset);
+  }
+
+  restoreCamera() {
+    const c = this.saved.camera;
+    if (!Array.isArray(c?.p) || !Array.isArray(c?.t)) return false;
+    if (![...c.p, ...c.t].every(Number.isFinite)) return false;
+    this.camera.position.fromArray(c.p);
+    this.controls.target.fromArray(c.t);
+    this.controls.update();
+    markChip($('view-presets'), () => false);
+    this.dirty = true;
+    return true;
+  }
+
+  saveNow() {
+    const inputs = {};
+    for (const id of SAVED_INPUTS) {
+      const el = $(id);
+      if (el) inputs[id] = el.type === 'checkbox' ? el.checked : el.value;
+    }
+    store.save({
+      inputs,
+      mode: this.state.mode,
+      colorMode: this.state.colorMode,
+      range: [this.state.rangeStart, this.state.rangeEnd],
+      now: this.state.now,
+      spanPreset: $('span-presets').querySelector('button.on')?.dataset.span ?? null,
+      panelCollapsed: $('panel').classList.contains('collapsed'),
+      feedOpen: this.feed?.isOpen ?? true,
+      camera: {
+        p: this.camera.position.toArray(),
+        t: this.controls.target.toArray(),
+      },
+    });
+  }
+
+  /* ── scene ──────────────────────────────────────────────── */
+
+  buildScene() {
+    const canvas = $('stage');
+    this.canvas = canvas;
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas, antialias: true, powerPreference: 'high-performance',
+    });
+    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    this.renderer.setClearColor(0x05070d, 1);
+
+    // No scene fog: the point shader does not sample it, so fogging the
+    // reference lines alone would read as an inconsistency.
+    this.scene = new THREE.Scene();
+
+    this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 600);
+
+    this.controls = new OrbitControls(this.camera, canvas);
+    Object.assign(this.controls, {
+      enableDamping: true, dampingFactor: 0.07,
+      rotateSpeed: 0.62, zoomSpeed: 0.85, panSpeed: 0.7,
+      minDistance: 1.2, maxDistance: 260,
+      autoRotateSpeed: 0.42,
+    });
+    this.controls.addEventListener('change', () => { this.dirty = true; });
+    // Touching the camera yourself cancels any glide in progress.
+    this.controls.addEventListener('start', () => { this.fly = null; });
+
+    // Everything lives in one group whose Y scale is the depth exaggeration.
+    // Keeping the group free of rotation/translation lets the picker map
+    // vertices to world space with a single multiply.
+    this.world = new THREE.Group();
+    this.world.scale.y = this.state.exag;
+    this.scene.add(this.world);
+
+    this.quakes = new QuakeLayer(this.data, this.proj);
+    this.world.add(this.quakes.points);
+
+    this.ref = new RefLayer(this.data.basemap, this.proj, this.meta,
+      () => { this.dirty = true; });        // repaint when the texture arrives
+    this.ref.maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    this.world.add(this.ref.group);
+
+    this.marker = new SelectionMarker({ color: 0xffffff });
+    this.marker.setPixelRatio(this.renderer.getPixelRatio());
+    this.world.add(this.marker.points);
+
+    this.labels = new AxisLabels($('labels'), this.proj, this.world);
+    this.labels.setGraticule(this.ref.lonTicks, this.ref.latTicks);
+
+    this.picker = new Picker(canvas, this.camera, this.world, this.quakes);
+
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.bindPointer();
+  }
+
+  resize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.recenter();
+    this.quakes.setViewportHeight(h * this.renderer.getPixelRatio());
+    this.dirty = true;
+  }
+
+  /**
+   * The canvas fills the window but the panel and timeline sit on top of it, so
+   * the geometric centre of the canvas is not the centre of what you can see.
+   * A pure principal-point shift (fullWidth/Height equal to the canvas, so the
+   * field of view is untouched) moves the scene into the clear area. Raycasting
+   * and label projection both go through the projection matrix, so they follow.
+   */
+  recenter() {
+    const { width, height, left, right, bottom } = this.viewInsets();
+    // A positive X offset shifts the scene left; the panel on the right and the
+    // event list on the left pull opposite ways, so use the difference.
+    this.camera.setViewOffset(width, height, (right - left) / 2, bottom / 2, width, height);
+    this.camera.updateProjectionMatrix();
+    this.dirty = true;
+  }
+
+  /** Pixel area of the canvas that the overlaid UI does not cover. */
+  viewInsets() {
+    const width = window.innerWidth;
+    const shown = (el) => el && getComputedStyle(el).display !== 'none';
+
+    const panel = $('panel');
+    const panelOver = shown(panel) && !panel.classList.contains('collapsed');
+    const feed = $('feed');
+    const feedOver = shown(feed) && !feed.classList.contains('collapsed');
+
+    return {
+      width,
+      height: window.innerHeight,
+      left: feedOver ? feed.getBoundingClientRect().right : 0,
+      right: panelOver ? panel.getBoundingClientRect().width : 0,
+      bottom: $('timeline').getBoundingClientRect().height,
+    };
+  }
+
+  /** Vertical centre of the cloud at the current exaggeration. */
+  focusY(f = 0.42) { return -this.proj.depthMax * SCALE * this.state.exag * f; }
+
+  /** World-space position of an event, accounting for the depth exaggeration. */
+  worldPos(i, out = new THREE.Vector3()) {
+    const p = this.quakes.positions;
+    return out.set(p[i * 3], p[i * 3 + 1] * this.state.exag, p[i * 3 + 2]);
+  }
+
+  /**
+   * Glide the camera to look at `target`, keeping the current viewing direction
+   * so the move reads as travel rather than a cut. Never zooms out: if you are
+   * already closer than the default framing, the distance is left alone.
+   */
+  flyTo(target, ms = 800) {
+    const span = Math.max(this.proj.width, this.proj.height);
+    const dir = this.camera.position.clone().sub(this.controls.target);
+    const dist = Math.min(dir.length(), span * 0.6);
+    dir.normalize().multiplyScalar(Math.max(dist, 0.6));
+
+    this.fly = {
+      fromTarget: this.controls.target.clone(),
+      toTarget: target.clone(),
+      fromPos: this.camera.position.clone(),
+      toPos: target.clone().add(dir),
+      start: performance.now(),
+      ms,
+    };
+    this.dirty = true;
+  }
+
+  /** Advance an in-flight camera move; returns true while still animating. */
+  stepFly() {
+    if (!this.fly) return false;
+    const k = Math.min(1, (performance.now() - this.fly.start) / this.fly.ms);
+    // easeInOutQuad -- starts and lands gently.
+    const e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k);
+    this.controls.target.lerpVectors(this.fly.fromTarget, this.fly.toTarget, e);
+    this.camera.position.lerpVectors(this.fly.fromPos, this.fly.toPos, e);
+    if (k >= 1) this.fly = null;
+    return true;
+  }
+
+  applyPreset(name) {
+    this.fly = null;
+    const p = this.proj;
+    const span = Math.max(p.width, p.height);
+    const t = new THREE.Vector3(0, this.focusY(), 0);
+    let dir;
+    let dist = span * 1.62;
+
+    switch (name) {
+      case 'top':
+        t.set(0, 0, 0);
+        dir = new THREE.Vector3(0, 1, 0.0001);
+        dist = span * 1.6;
+        break;
+      case 'south':                                   // looking north: lon × depth
+        dir = new THREE.Vector3(0, 0.16, 1);
+        dist = span * 1.72;
+        break;
+      case 'east':                                    // looking west: lat × depth
+        dir = new THREE.Vector3(1, 0.16, 0);
+        dist = span * 1.72;
+        break;
+      case 'trench':                                  // oblique on the Japan Trench
+        t.set(p.x(141.5), -240 * SCALE * this.state.exag, p.z(38.5));
+        dir = new THREE.Vector3(0.86, 0.34, 0.38);
+        dist = span * 1.32;
+        break;
+      default:                                        // iso
+        dir = new THREE.Vector3(0.6, 0.44, 0.67);
+        dist = span * 1.78;
+    }
+
+    this.controls.target.copy(t);
+    this.camera.position.copy(t).add(dir.normalize().multiplyScalar(dist));
+    this.controls.update();
+    this.dirty = true;
+  }
+
+  /* ── timeline ───────────────────────────────────────────── */
+
+  buildTimeline() {
+    this.timeline = new Timeline({
+      track: $('tl-track'),
+      canvas: $('tl-canvas'),
+      head: $('tl-head'),
+      gripA: $('tl-grip-a'),
+      gripB: $('tl-grip-b'),
+      meta: this.meta,
+      epochMs: this.data.epochMs,
+      totalDays: this.data.totalDays,
+      onSeek: (days) => {
+        const s = this.state;
+        s.now = clamp(days, s.rangeStart, s.rangeEnd);
+        this.setPlaying(false);
+        this.syncTime();
+      },
+      onRange: (r) => {
+        this.setRange(r);
+        markChip($('span-presets'), () => false);   // no longer a preset
+      },
+    });
+  }
+
+  /* ── period ─────────────────────────────────────────────── */
+
+  daysToDate(days) { return new Date(this.data.epochMs + days * DAY_MS); }
+  dateToDays(d) { return (d.getTime() - this.data.epochMs) / DAY_MS; }
+
+  setRange([a, b]) {
+    const T = this.data.totalDays;
+    const s = this.state;
+    s.rangeStart = clamp(a, 0, T - MIN_SPAN_DAYS);
+    s.rangeEnd = clamp(b, s.rangeStart + MIN_SPAN_DAYS, T);
+    s.now = clamp(s.now, s.rangeStart, s.rangeEnd);
+    this.syncDates();
+    this.syncTime();
+    this.persist();
+  }
+
+  syncDates() {
+    $('in-date-a').value = fmtISO(this.daysToDate(this.state.rangeStart));
+    $('in-date-b').value = fmtISO(this.daysToDate(this.state.rangeEnd));
+  }
+
+  /* ── UI wiring ──────────────────────────────────────────── */
+
+  bindUI() {
+    const s = this.state;
+
+    /* every panel interaction schedules a save */
+    for (const ev of ['input', 'change']) {
+      $('panel').addEventListener(ev, () => this.persist());
+    }
+    $('panel').addEventListener('click', () => this.persist());
+    this.controls.addEventListener('end', () => this.persist());
+    window.addEventListener('pagehide', () => this.saveNow());
+
+    /* period */
+    const T = this.data.totalDays;
+    const dA = $('in-date-a'), dB = $('in-date-b');
+    dA.min = dB.min = fmtISO(this.daysToDate(0));
+    dA.max = dB.max = fmtISO(this.daysToDate(T));
+    this.syncDates();
+    const onDate = () => {
+      const a = Date.parse(dA.value + 'T00:00:00Z');
+      const b = Date.parse(dB.value + 'T00:00:00Z');
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+      this.setRange([this.dateToDays(new Date(a)), this.dateToDays(new Date(b))]);
+      markChip($('span-presets'), () => false);
+    };
+    dA.addEventListener('change', onDate);
+    dB.addEventListener('change', onDate);
+
+    chips($('span-presets'), (btn) => {
+      const span = { all: T, '10y': 3652, '1y': 365 }[btn.dataset.span] ?? T;
+      this.setRange([T - span, T]);
+      this.state.now = this.state.rangeEnd;
+      this.syncTime();
+    });
+
+    /* mode */
+    seg($('seg-mode'), (v) => {
+      s.mode = v;
+      const win = v === 'window';
+      $('row-window').classList.toggle('hide', !win);
+      $('mode-hint').textContent = win
+        ? '현재 시점에서 뒤로 정해진 기간만 표시합니다. 지진의 이동과 여진 전개를 보기에 좋습니다.'
+        : '시작부터 현재 시점까지 모든 지진이 남습니다. 점이 쌓이며 밀집 구역이 드러납니다.';
+      $('row-fade').querySelector('span').textContent = win ? '꼬리 진하기' : '과거 지진 진하기';
+      this.syncTime();
+    }, s.mode);
+
+    /* sliders */
+    slider('in-window', (i) => {
+      const [days, label] = WINDOW_PRESETS[clamp(i, 0, WINDOW_PRESETS.length - 1)];
+      s.windowDays = days;
+      $('out-window').textContent = label;
+      this.syncTime();
+    });
+    slider('in-fade', (v) => {
+      this.quakes.uniforms.uFade.value = v / 100;
+      $('out-fade').textContent = `${v}%`;
+      this.dirty = true;
+    });
+    slider('in-glow', (v) => {
+      this.quakes.uniforms.uGlowDays.value = v;
+      $('out-glow').textContent = v === 0 ? '없음' : `${nf.format(v)}일`;
+      this.syncTime();
+    });
+    slider('in-exag', (v) => {
+      s.exag = v;
+      this.world.scale.y = v;
+      $('out-exag').textContent = `${v.toFixed(1)}×`;
+      this.dirty = true;
+    });
+    slider('in-size', (v) => {
+      this.quakes.uniforms.uSizeScale.value = v;
+      $('out-size').textContent = `${v.toFixed(2)}×`;
+      this.dirty = true;
+    });
+    slider('in-msize-all', (v) => {
+      this.quakes.uniforms.uMagScale.value = v;
+      $('out-msize-all').textContent = `${v.toFixed(2)}×`;
+      this.renderMagKey();
+      this.dirty = true;
+    });
+    for (let m = 1; m <= 10; m++) {
+      slider(`in-msize-${m}`, (v) => {
+        this.quakes.uniforms.uMagSizes.value[m - 1] = v;
+        $(`out-msize-${m}`).textContent = v === 0 ? '숨김' : v.toFixed(1);
+        this.renderMagKey();
+        this.dirty = true;
+      });
+    }
+    $('btn-msize-reset').addEventListener('click', () => {
+      const set = (id, v) => {
+        const el = $(id);
+        el.value = v;
+        // Bubbles so the panel-level persist listener sees the change too.
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      MAG_SIZE_DEFAULTS.forEach((d, i) => set(`in-msize-${i + 1}`, d));
+      set('in-msize-all', 1);
+    });
+    slider('in-sharp', (v) => {
+      // 100% = hard-edged disc, 0% = wide glow.
+      this.quakes.uniforms.uSoft.value = 1 - v / 100;
+      $('out-sharp').textContent = `${v}%`;
+      this.dirty = true;
+    });
+    slider('in-opacity', (v) => {
+      this.quakes.uniforms.uOpacity.value = v / 100;
+      $('out-opacity').textContent = `${v}%`;
+      this.dirty = true;
+    });
+
+    /* dual range filters — clamp so the handles cannot cross */
+    const savedIn = this.saved.inputs ?? {};
+    const magLo = $('in-mag-lo'), magHi = $('in-mag-hi');
+    // Snap the bounds outward onto the slider's own 0.1 grid. A range input
+    // silently rounds `value` to `min + n*step`, so a min like ISC's 1.95 would
+    // shift the whole grid by 0.05 and make the true maximum unreachable --
+    // quietly filtering out the single largest earthquake. The 1e-6 nudges
+    // absorb float error (7.8 * 10 is 78.00000000000001).
+    const mMin = Math.floor(this.meta.mag_min * 10 + 1e-6) / 10;
+    const mMax = Math.ceil(this.meta.mag_max * 10 - 1e-6) / 10;
+    for (const el of [magLo, magHi]) { el.min = mMin; el.max = mMax; }
+    // Widening min/max can silently clamp a restored value, so re-apply it.
+    magLo.value = savedIn['in-mag-lo'] ?? mMin;
+    magHi.value = savedIn['in-mag-hi'] ?? mMax;
+    const syncMag = () => {
+      let lo = +magLo.value, hi = +magHi.value;
+      if (lo > hi) { if (document.activeElement === magLo) hi = lo; else lo = hi; }
+      magLo.value = lo; magHi.value = hi;
+      this.quakes.uniforms.uMinMag.value = lo;
+      this.quakes.uniforms.uMaxMag.value = hi;
+      $('out-mag').textContent = `${lo.toFixed(1)} – ${hi.toFixed(1)}`;
+      fillTrack(magLo.parentElement, lo, hi, mMin, mMax);
+      this.updateStats();
+      this.dirty = true;
+    };
+    magLo.addEventListener('input', syncMag);
+    magHi.addEventListener('input', syncMag);
+
+    const depLo = $('in-depth-lo'), depHi = $('in-depth-hi');
+    const dMax = this.proj.depthMax;
+    for (const el of [depLo, depHi]) { el.max = dMax; }
+    depLo.value = savedIn['in-depth-lo'] ?? 0;
+    depHi.value = savedIn['in-depth-hi'] ?? dMax;
+    const syncDepth = () => {
+      let lo = +depLo.value, hi = +depHi.value;
+      if (lo > hi) { if (document.activeElement === depLo) hi = lo; else lo = hi; }
+      depLo.value = lo; depHi.value = hi;
+      this.quakes.uniforms.uMinDepth.value = lo;
+      this.quakes.uniforms.uMaxDepth.value = hi;
+      $('out-depth').textContent = `${lo} – ${hi}`;
+      fillTrack(depLo.parentElement, lo, hi, 0, dMax);
+      this.updateStats();
+      this.dirty = true;
+    };
+    depLo.addEventListener('input', syncDepth);
+    depHi.addEventListener('input', syncDepth);
+
+    chips($('depth-presets'), (btn) => {
+      depLo.value = btn.dataset.lo;
+      depHi.value = Math.min(+btn.dataset.hi, dMax);
+      syncDepth();
+    });
+
+    /* colour + toggles */
+    seg($('seg-color'), (v) => {
+      this.state.colorMode = +v;
+      this.quakes.uniforms.uColorMode.value = +v;
+      this.renderLegend();
+      this.dirty = true;
+    }, String(s.colorMode));
+    check('ck-additive', (on) => { this.quakes.setAdditive(on); this.dirty = true; });
+    check('ck-coast', (on) => { this.ref.setCoastVisible(on); this.dirty = true; });
+    check('ck-admin', (on) => { this.ref.setAdminVisible(on); this.dirty = true; });
+    check('ck-plates', (on) => { this.ref.setPlatesVisible(on); this.dirty = true; });
+
+    /* map layer */
+    const landOK = !!this.meta.land?.path;
+    check('ck-land', (on) => {
+      this.ref.setLandVisible(on);
+      $('row-land').classList.toggle('hide', !on);
+      this.dirty = true;
+    });
+    slider('in-land', (v) => {
+      this.ref.setLandOpacity(v / 100);
+      $('out-land').textContent = `${v}%`;
+      this.dirty = true;
+    });
+    if (!landOK) {
+      // No baked texture: say so rather than offering a control that does nothing.
+      $('ck-land').checked = false;
+      $('ck-land').disabled = true;
+      $('row-land').classList.add('hide');
+      $('land-hint').textContent =
+        'data/land.png 이 없습니다. update.bat --build-only 로 지도를 생성하세요.';
+    } else {
+      const L = this.meta.land;
+      $('land-hint').textContent =
+        `Natural Earth 육지 폴리곤을 ${L.width}×${L.height} 마스크로 구워 표면에 덮습니다.`;
+    }
+    check('ck-box', (on) => {
+      this.ref.setCageVisible(on);
+      this.labels.setVisible(on);
+      this.dirty = true;
+    });
+    check('ck-spin', (on) => { this.controls.autoRotate = on; this.dirty = true; });
+
+    chips($('view-presets'), (btn) => this.applyPreset(btn.dataset.v));
+
+    /* playback */
+    $('btn-play').addEventListener('click', () => this.setPlaying(!s.playing));
+    $('btn-reset').addEventListener('click', () => {
+      s.now = s.rangeStart; this.setPlaying(false); this.syncTime();
+    });
+    $('btn-forget').addEventListener('click', () => {
+      store.clear();
+      $('saved-note').textContent = '저장된 설정을 지웠습니다. 새로고침하면 기본값으로 시작합니다.';
+      this.persist = () => {};      // stop re-saving before the reload
+    });
+    $('sel-speed').addEventListener('change', (e) => { s.speed = +e.target.value; });
+    check('ck-loop', (on) => { s.loop = on; });
+
+    /* panel + card */
+    $('panel-toggle').addEventListener('click', () => {
+      $('panel').classList.toggle('collapsed');
+      // Re-centre once the slide-out transition has settled.
+      setTimeout(() => this.recenter(), 340);
+    });
+    const closeCard = () => {
+      $('card').hidden = true;
+      this.marker.hide();
+      this.feed.setSelected(null);
+      this.dirty = true;
+    };
+    $('card-close').addEventListener('click', closeCard);
+    this.closeCard = closeCard;
+
+    /* keyboard */
+    window.addEventListener('keydown', (ev) => {
+      if (ev.target.matches('input, select, textarea')) return;
+      const step = ev.shiftKey ? 365 : 30;
+      if (ev.code === 'Space') { ev.preventDefault(); this.setPlaying(!s.playing); }
+      else if (ev.key === 'ArrowRight') { this.nudge(+step); }
+      else if (ev.key === 'ArrowLeft') { this.nudge(-step); }
+      else if (ev.key === 'r' || ev.key === 'R') { this.applyPreset('iso'); }
+      else if (ev.key === 'Escape') { this.closeCard(); }
+    });
+
+    // Run the filter handlers once so uniforms, readouts and the filled track
+    // segments all reflect whatever values were restored above.
+    this.renderLegend();
+    syncMag();
+    syncDepth();
+    markChip($('depth-presets'), (b) => +b.dataset.lo === +depLo.value
+      && Math.min(+b.dataset.hi, dMax) === +depHi.value);
+  }
+
+  nudge(days) {
+    const s = this.state;
+    this.setPlaying(false);
+    s.now = clamp(s.now + days, s.rangeStart, s.rangeEnd);
+    this.syncTime();
+  }
+
+  setPlaying(on) {
+    const s = this.state;
+    // Starting from the end of the period means "replay", so rewind first.
+    if (on && s.now >= s.rangeEnd - 0.5) s.now = s.rangeStart;
+    s.playing = on;
+    const btn = $('btn-play');
+    btn.textContent = on ? '❙❙' : '▶';
+    btn.classList.toggle('playing', on);
+    btn.setAttribute('aria-label', on ? '일시정지' : '재생');
+    this.dirty = true;
+  }
+
+  fillMeta() {
+    const m = this.meta;
+    $('meta-span').textContent =
+      `${m.time_start.slice(0, 10)} → ${m.time_end.slice(0, 10)}`;
+    $('meta-built').textContent = m.generated_utc.replace('T', ' ').slice(0, 16) + ' UTC';
+    $('stat-total').textContent = nf.format(m.count);
+
+    const spans = m.source_spans ?? [];
+    const isc = spans.find((s) => s.source === 'isc');
+    const usgs = spans.find((s) => s.source === 'usgs');
+
+    $('head-sub').textContent = isc
+      ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
+        + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`
+      : `M${m.minmagnitude.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
+        + `${m.time_end.slice(0, 4)} · USGS ANSS ComCat`;
+
+    // Source list + the completeness caveat the handoff creates.
+    const rows = spans.map((s) => {
+      const name = s.source === 'isc' ? 'ISC (JMA 포함)' : 'USGS ComCat';
+      return `<div class="kv"><span>${name}</span><b>${nf.format(s.count)}건 · `
+        + `M${s.mag_min.toFixed(1)}+</b></div>`
+        + `<div class="kv"><span></span><b>${s.first.slice(0, 10)} → ${s.last.slice(0, 10)}</b></div>`;
+    }).join('');
+    $('meta-sources').innerHTML = rows;
+
+    if (isc && usgs) {
+      $('meta-caveat').hidden = false;
+      $('meta-caveat').innerHTML =
+        `<b>${m.handoff}</b> 이후로는 소스가 USGS로 바뀌어 하한이 `
+        + `M${isc.mag_min.toFixed(1)} → M${usgs.mag_min.toFixed(1)} 로 올라갑니다. `
+        + '시간바의 보라색 점선이 그 경계이고, 그 뒤로 막대가 낮아지는 것은 지진이 줄어서가 '
+        + '아니라 <b>작은 지진이 수록되지 않기 때문</b>입니다. ISC가 JMA 데이터를 더 '
+        + '공개하면 <code>update.bat --detect-handoff</code> 로 경계를 앞당길 수 있습니다.';
+    }
+
+    if (m.handoff) {
+      const days = (Date.parse(m.handoff + 'T00:00:00Z') - this.data.epochMs) / DAY_MS;
+      if (days > 0 && days < this.data.totalDays) this.timeline.setHandoff(days);
+    }
+
+    this.renderMagKey();
+  }
+
+  /**
+   * Size reference for the legend, generated from the same curve the vertex
+   * shader uses. Hard-coding the dots would silently lie as soon as the
+   * catalogue's minimum magnitude changes.
+   */
+  renderMagKey() {
+    const sizes = this.quakes.uniforms.uMagSizes.value;
+    const scale = this.quakes.uniforms.uMagScale.value;
+    const magSize = (m) => {
+      const mm = clamp(m, 1, 10) - 1;
+      const i = Math.min(Math.floor(mm), 8);
+      return (sizes[i] + (sizes[i + 1] - sizes[i]) * (mm - i)) * scale;
+    };
+    const lo = Math.ceil(this.meta.mag_min);
+    const hi = Math.floor(this.meta.mag_max);
+    const marks = [lo, ...[4, 6, 8].filter((v) => v > lo && v < hi), hi]
+      .filter((v, i, a) => a.indexOf(v) === i);
+
+    $('legend-mags').innerHTML = marks.map((m, i) => {
+      const sz = magSize(m);
+      const px = Math.min(18, 3 + (sz - 1) * 0.9).toFixed(1);
+      const label = i === marks.length - 1 ? `M${m}+` : `M${m}`;
+      return `<span><i style="--d:${px}px"></i>${label}</span>`;
+    }).join('');
+  }
+
+  renderLegend() {
+    const mode = this.state.colorMode;
+    const ramp = $('legend-ramp');
+    const ticksEl = $('legend-ticks');
+    const put = (stops, marks, fmt) => {
+      const lo = stops[0][0], hi = stops[stops.length - 1][0];
+      ramp.style.background = cssGradient(stops);
+      ramp.style.display = '';
+      ticksEl.innerHTML = marks
+        .map((v) => `<span style="left:${((v - lo) / (hi - lo) * 100).toFixed(2)}%">${fmt(v)}</span>`)
+        .join('');
+    };
+
+    if (mode === 0) {
+      $('legend-title').textContent = '깊이 (km)';
+      put(DEPTH_STOPS, [0, 70, 150, 300, 700], (v) => v);
+    } else if (mode === 1) {
+      $('legend-title').textContent = '규모 (M)';
+      put(MAG_STOPS, [3, 5, 6, 7, 9], (v) => v);
+    } else if (mode === 2) {
+      $('legend-title').textContent = '발생 연도';
+      const y0 = +this.meta.time_start.slice(0, 4);
+      const y1 = +this.meta.time_end.slice(0, 4);
+      put(TIME_STOPS, [0, 0.25, 0.5, 0.75, 1],
+        (f) => Math.round(y0 + (y1 - y0) * f));
+    } else {
+      $('legend-title').textContent = '밀도 (단색)';
+      ramp.style.display = 'none';
+      ticksEl.innerHTML = '<span style="left:0">겹칠수록 밝아집니다 — 발광 합성 권장</span>';
+    }
+  }
+
+  /* ── time + stats ───────────────────────────────────────── */
+
+  syncTime() {
+    const s = this.state;
+    const win = s.mode === 'window' ? s.windowDays : null;
+    this.quakes.setTime(s.now, win, s.rangeStart);
+    this.timeline.set(s.now, win, [s.rangeStart, s.rangeEnd]);
+
+    const at = this.daysToDate(s.now);
+    $('tl-date').textContent = fmtDateKo(at);
+    const fromDays = win == null ? s.rangeStart : Math.max(s.rangeStart, s.now - win);
+    $('tl-range').textContent =
+      `${fmtISO(this.daysToDate(fromDays))} → ${fmtISO(at)} UTC · `
+      + `${win == null ? '누적' : '이동 구간'}`;
+
+    this.statsDue = true;
+    this.dirty = true;
+  }
+
+  updateStats() {
+    const { count, peak } = this.quakes.summarize();
+    $('stat-visible').textContent = nf.format(count);
+    $('stat-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
+    this.feed?.render();
+    this.statsDue = false;
+  }
+
+  /* ── pointer ────────────────────────────────────────────── */
+
+  bindPointer() {
+    const tip = $('tip');
+    let hoverAt = 0;
+    let downX = 0, downY = 0;
+
+    this.canvas.addEventListener('pointermove', (ev) => {
+      // A pick sweeps the whole visible range, so it is throttled hard and
+      // skipped during playback where the range is changing every frame anyway.
+      if (this.state.playing) { tip.hidden = true; return; }
+      const t = performance.now();
+      if (t - hoverAt < 110) return;
+      hoverAt = t;
+
+      const i = this.picker.pick(ev.clientX, ev.clientY);
+      if (i == null) { tip.hidden = true; this.canvas.style.cursor = ''; return; }
+
+      const e = this.data.events;
+      tip.hidden = false;
+      tip.style.left = `${ev.clientX}px`;
+      tip.style.top = `${ev.clientY}px`;
+      tip.innerHTML = `<b>M${e.mag[i].toFixed(1)}</b> · ${Math.round(e.depth[i])}km`
+        + ` · ${fmtISO(this.data.dateAt(i))}`;
+      this.canvas.style.cursor = 'pointer';
+    });
+
+    this.canvas.addEventListener('pointerleave', () => { tip.hidden = true; });
+
+    this.canvas.addEventListener('pointerdown', (ev) => {
+      downX = ev.clientX; downY = ev.clientY;
+    });
+    this.canvas.addEventListener('pointerup', (ev) => {
+      // Anything beyond a few pixels of travel was an orbit drag, not a click.
+      if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 5) return;
+      const i = this.picker.pick(ev.clientX, ev.clientY);
+      if (i == null) return;
+      this.marker.show(i, this.quakes.positions);
+      this.feed.setSelected(i);
+      this.showCard(i);
+      this.dirty = true;
+    });
+  }
+
+  showCard(i) {
+    const e = this.data.events;
+    const at = this.data.dateAt(i);
+    const jst = new Date(at.getTime() + 9 * 3600000);
+    const src = this.data.sourceOf(i);
+
+    $('card').hidden = false;
+    $('card-mag').textContent = `M${e.mag[i].toFixed(1)}`;
+    $('card-magtype').textContent = this.data.magTypeOf(i) || '규모';
+    $('card-place').textContent = this.data.placeOf(i) || '(이름 없음)';
+    $('card-utc').textContent = `${fmtISO(at)} ${fmtClock(at)}`;
+    $('card-jst').textContent = `${fmtISO(jst)} ${fmtClock(jst)}`;
+    $('card-depth').textContent = `${e.depth[i].toFixed(1)} km`;
+    $('card-loc').textContent = `${e.lat[i].toFixed(3)}°N ${e.lon[i].toFixed(3)}°E`;
+
+    const link = $('card-link');
+    const url = this.data.urlOf(i);
+    if (url) {
+      link.href = url;
+      link.textContent = src === 'isc' ? 'ISC 상세 페이지 ↗' : 'USGS 상세 페이지 ↗';
+      link.hidden = false;
+    } else {
+      link.hidden = true;
+    }
+  }
+
+  /* ── loop ───────────────────────────────────────────────── */
+
+  start() {
+    this.syncTime();
+    this.updateStats();
+    this.clock = new THREE.Clock();
+    let statAt = 0;
+
+    const frame = () => {
+      requestAnimationFrame(frame);
+      const dt = Math.min(0.1, this.clock.getDelta());
+      const s = this.state;
+
+      if (s.playing) {
+        s.now += s.speed * dt;
+        if (s.now >= s.rangeEnd) {
+          if (s.loop) s.now = s.rangeStart;
+          else { s.now = s.rangeEnd; this.setPlaying(false); }
+        }
+        this.syncTime();
+      }
+
+      if (this.controls.autoRotate) this.dirty = true;
+      if (this.marker.tick(dt)) this.dirty = true;
+      if (this.stepFly()) this.dirty = true;
+      this.controls.update();
+
+      const t = performance.now();
+      if (this.statsDue && t - statAt > 110) { statAt = t; this.updateStats(); }
+
+      if (this.dirty) {
+        this.dirty = false;
+        this.labels.update(this.camera, this.viewInsets());
+        this.renderer.render(this.scene, this.camera);
+      }
+    };
+    frame();
+
+    requestAnimationFrame(() => {
+      $('loader').classList.add('done');
+      setTimeout(() => $('loader').remove(), 600);
+    });
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════ */
+/* small DOM helpers                                              */
+
+/** Segmented control. `initial` selects a button by data-v and fires once. */
+function seg(root, onPick, initial) {
+  root.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    root.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+    onPick(btn.dataset.v);
+  });
+  const start = (initial != null && root.querySelector(`button[data-v="${initial}"]`))
+    || root.querySelector('button.on')
+    || root.querySelector('button');
+  if (start) {
+    root.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === start));
+    onPick(start.dataset.v);
+  }
+}
+
+/** Chip row. Never fires on bind -- chips are shortcuts, not state. */
+function chips(root, onPick) {
+  root.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    root.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === btn));
+    onPick(btn);
+  });
+}
+
+/** Highlight whichever chip satisfies `test`, clearing the rest. */
+function markChip(root, test) {
+  if (!root) return;
+  root.querySelectorAll('button').forEach((b) => b.classList.toggle('on', !!test(b)));
+}
+
+/** Clamp a persisted range to something usable for this catalogue. */
+function sanitizeRange(range, total) {
+  if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isFinite)) {
+    return [0, total];
+  }
+  const a = clamp(Math.min(range[0], range[1]), 0, total - MIN_SPAN_DAYS);
+  const b = clamp(Math.max(range[0], range[1]), a + MIN_SPAN_DAYS, total);
+  return [a, b];
+}
+
+function slider(id, onInput) {
+  const el = $(id);
+  const fire = () => onInput(+el.value);
+  el.addEventListener('input', fire);
+  fire();
+}
+
+function check(id, onChange) {
+  const el = $(id);
+  el.addEventListener('change', () => onChange(el.checked));
+  onChange(el.checked);
+}
+
+/** Paint the selected span of a dual-range track. */
+function fillTrack(track, lo, hi, min, max) {
+  const f = (v) => ((v - min) / (max - min)) * 100;
+  track.style.setProperty('--lo', `${f(lo).toFixed(2)}%`);
+  track.style.setProperty('--hi', `${(100 - f(hi)).toFixed(2)}%`);
+}
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const pad = (n) => String(n).padStart(2, '0');
+
+const fmtISO = (d) =>
+  `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+const fmtClock = (d) => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+const fmtDateKo = (d) =>
+  `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
+
+// Started last so every helper above is initialised before the app builds.
+boot();

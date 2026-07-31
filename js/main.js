@@ -598,8 +598,8 @@ class App {
       this.syncTime();
     });
 
-    /* view scope: Japan detail vs whole-Earth globe */
-    seg($('seg-view'), (v) => { this.setView(v); }, 'japan');
+    /* view scope: the whole-Earth globe opens; Japan is one click away */
+    seg($('seg-view'), (v) => { this.setView(v); }, 'globe');
 
     /* mode */
     seg($('seg-mode'), (v) => {

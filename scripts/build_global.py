@@ -30,15 +30,18 @@ from array import array
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CATALOG = os.path.join(ROOT, "data", "raw", "global", "catalog.csv")
-ISC_CATALOG = os.path.join(ROOT, "data", "raw", "global", "isc_catalog.csv")
+RAW = os.path.join(ROOT, "data", "raw", "global")
+# Each source may have a historic backfill file alongside the modern one.
+USGS_CATALOGS = ["catalog_1900.csv", "catalog.csv"]
+ISC_CATALOGS = ["isc_catalog_1900.csv", "isc_catalog.csv"]
+CATALOG = os.path.join(RAW, "catalog.csv")     # existence gate for main()
 COAST = os.path.join(ROOT, "data", "raw", "ne_coastline.geojson")
 PLATES = os.path.join(ROOT, "data", "raw", "plates.json")
 LAND = os.path.join(ROOT, "data", "raw", "ne_10m_land.geojson")
 LAKES = os.path.join(ROOT, "data", "raw", "ne_10m_lakes.geojson")
 OUT = os.path.join(ROOT, "data", "global")
 
-EPOCH = datetime(1975, 1, 1, tzinfo=timezone.utc)
+EPOCH = datetime(1900, 1, 1, tzinfo=timezone.utc)   # shared with the Japan build
 MAGIC = 0x00315147                      # 'GQ1\0' little-endian
 BANDS = [("m2", 2.0, 3.0), ("m3", 3.0, 4.0), ("m4", 4.0, 5.0), ("m5", 5.0, 99.0)]
 COAST_TOL_DEG = 0.12                    # min spacing between kept coast points
@@ -125,8 +128,16 @@ def dedup(events: list[tuple]) -> tuple[list[tuple], int]:
 
 
 def read_events() -> tuple[dict[str, list[tuple]], dict]:
-    usgs = read_catalog(CATALOG, SRC_USGS)
-    isc = read_catalog(ISC_CATALOG, SRC_ISC) if os.path.exists(ISC_CATALOG) else []
+    usgs = []
+    for name in USGS_CATALOGS:
+        path = os.path.join(RAW, name)
+        if os.path.exists(path):
+            usgs.extend(read_catalog(path, SRC_USGS))
+    isc = []
+    for name in ISC_CATALOGS:
+        path = os.path.join(RAW, name)
+        if os.path.exists(path):
+            isc.extend(read_catalog(path, SRC_ISC))
     log(f"[global] catalogues: USGS {len(usgs):,} rows, ISC {len(isc):,} rows")
 
     merged, removed = dedup(usgs + isc)

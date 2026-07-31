@@ -8,7 +8,9 @@
  */
 
 const KEY = 'jq4d.settings';
-const VERSION = 1;
+// v2: the day axis moved from a 1975 epoch to 1900 -- saved ranges/playheads
+// from v1 would land 75 years off, so v1 payloads are retired wholesale.
+const VERSION = 2;
 
 export function load() {
   try {

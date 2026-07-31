@@ -26,12 +26,16 @@ OUT = os.path.join(ROOT, "data", "raw-archive")
 ITEMS = [
     ("data/raw/catalog.csv", "japan-catalog.csv.gz"),
     ("data/raw/global/catalog.csv", "global-usgs-catalog.csv.gz"),
+    ("data/raw/global/catalog_1900.csv", "global-usgs-catalog-1900.csv.gz"),
     ("data/raw/global/isc_catalog.csv", "global-isc-catalog.csv.gz"),
+    ("data/raw/global/isc_catalog_1900.csv", "global-isc-catalog-1900.csv.gz"),
 ]
 STATES = [
     ("data/raw/fetch_state.json", "japan-fetch_state.json"),
     ("data/raw/global/state.json", "global-usgs-state.json"),
+    ("data/raw/global/state_1900.json", "global-usgs-state-1900.json"),
     ("data/raw/global/isc_state.json", "global-isc-state.json"),
+    ("data/raw/global/isc_state_1900.json", "global-isc-state-1900.json"),
 ]
 
 

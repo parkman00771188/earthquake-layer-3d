@@ -573,7 +573,9 @@ def main() -> int:
 
 
 def build(cfg: dict, events: list[dict], staged: Staged) -> int:
-    epoch = events[0]["t"].replace(hour=0, minute=0, second=0, microsecond=0)
+    # Fixed epoch shared with the worldwide build, so both views live on the
+    # same day axis and the timeline can drive either without conversion.
+    epoch = datetime(1900, 1, 1, tzinfo=timezone.utc)
     labels = build_labels(events)
     binary = write_binary(events, epoch, labels, staged.path("quakes.bin"))
 

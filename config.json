@@ -8,7 +8,7 @@
   },
 
   "catalog": {
-    "starttime": "1975-01-01",
+    "starttime": "1900-01-01",
     "eventtype": "earthquake",
 
     "_handoff": [

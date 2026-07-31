@@ -30,14 +30,20 @@ from datetime import datetime, timedelta, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "data", "raw", "global")
-CATALOG = os.path.join(RAW, "isc_catalog.csv")
-STATE = os.path.join(RAW, "isc_state.json")
 
 API = "https://www.isc.ac.uk/fdsnws/event/1/query"
-START = "1975-01-01T00:00:00"
 MIN_MAG = 3.0
 LIMIT = 20000
 FIELDS = ["time", "latitude", "longitude", "depth", "mag", "id"]
+
+# Two independently-resumable stretches; the ISS-era backfill (1904..1974,
+# sparse but going back to the dawn of instrumental seismology) was added
+# after the modern stretch finished, so it lives in its own files.
+SEGMENTS = [
+    ("1900-01-01T00:00:00", "1975-01-01T00:00:00",
+     "isc_catalog_1900.csv", "isc_state_1900.json"),
+    ("1975-01-01T00:00:00", None, "isc_catalog.csv", "isc_state.json"),
+]
 
 # Anthropogenic and non-seismic rows are not part of the picture we draw.
 SKIP_TYPES = {
@@ -97,20 +103,22 @@ def parse(line: str) -> dict | None:
         return None
 
 
-def main() -> int:
-    os.makedirs(RAW, exist_ok=True)
+def run_segment(seg_start: str, seg_end: str | None,
+                catalog_name: str, state_name: str) -> bool:
+    """Fetch one stretch; True when it is (already) complete."""
+    catalog = os.path.join(RAW, catalog_name)
+    state_path = os.path.join(RAW, state_name)
 
-    state = {"cursor": START, "rows": 0, "window_days": 30, "done": False}
-    if os.path.exists(STATE):
-        with open(STATE, encoding="utf-8") as fh:
+    state = {"cursor": seg_start, "rows": 0, "window_days": 30, "done": False}
+    if os.path.exists(state_path):
+        with open(state_path, encoding="utf-8") as fh:
             state.update(json.load(fh))
     if state.get("done"):
-        log(f"[isc] already complete ({state['rows']:,} rows); "
-            "delete isc_state.json to refetch")
-        return 0
+        log(f"[isc] {catalog_name} already complete ({state['rows']:,} rows)")
+        return True
 
-    fresh = not os.path.exists(CATALOG) or os.path.getsize(CATALOG) == 0
-    out = open(CATALOG, "a", newline="", encoding="utf-8")
+    fresh = not os.path.exists(catalog) or os.path.getsize(catalog) == 0
+    out = open(catalog, "a", newline="", encoding="utf-8")
     writer = csv.DictWriter(out, fieldnames=FIELDS)
     if fresh:
         writer.writeheader()
@@ -120,12 +128,15 @@ def main() -> int:
     t0 = time.time()
 
     while True:
-        now = datetime.now(timezone.utc)
-        if cursor >= now - timedelta(minutes=10):
+        limit = (datetime.fromisoformat(seg_end).replace(tzinfo=timezone.utc)
+                 if seg_end else datetime.now(timezone.utc) - timedelta(minutes=10))
+        if cursor >= limit:
             state["done"] = True
             break
 
-        end = min(cursor + timedelta(days=window), now)
+        end = min(cursor + timedelta(days=window),
+                  datetime.fromisoformat(seg_end).replace(tzinfo=timezone.utc)
+                  if seg_end else datetime.now(timezone.utc))
         lines = fetch_window(cursor, end)
         if lines is None:
             log("[isc] server unavailable -- stopping; rerun to resume")
@@ -147,21 +158,29 @@ def main() -> int:
         cursor = end
         state["cursor"] = iso(cursor)
         state["window_days"] = window
-        with open(STATE, "w", encoding="utf-8") as fh:
+        with open(state_path, "w", encoding="utf-8") as fh:
             json.dump(state, fh)
         log(f"[isc] {state['rows']:>9,} rows  through {iso(end)[:10]}  "
             f"window {window:.0f}d  ({time.time() - t0:5.0f}s)")
 
         if len(lines) < LIMIT * 0.4:
-            window = min(window * 1.3, 90)
+            window = min(window * 1.3, 180)
         time.sleep(2)                        # the ISC asks for gentle clients
 
     out.close()
-    with open(STATE, "w", encoding="utf-8") as fh:
+    with open(state_path, "w", encoding="utf-8") as fh:
         json.dump(state, fh)
     if state.get("done"):
-        log(f"[isc] complete: {state['rows']:,} rows in {CATALOG}")
-    return 0
+        log(f"[isc] {catalog_name} complete: {state['rows']:,} rows")
+    return bool(state.get("done"))
+
+
+def main() -> int:
+    os.makedirs(RAW, exist_ok=True)
+    ok = True
+    for seg in SEGMENTS:
+        ok = run_segment(*seg) and ok
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

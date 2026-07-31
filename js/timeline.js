@@ -27,16 +27,7 @@ export class Timeline {
     this.range = [0, totalDays];
 
     const h = meta.histogram ?? { counts: [] };
-    this.bins = h.counts.map((count, i) => {
-      const y = h.start_year + Math.floor((h.start_month - 1 + i) / 12);
-      const m = (h.start_month - 1 + i) % 12;
-      return {
-        count,
-        d0: (Date.UTC(y, m, 1) - epochMs) / DAY_MS,
-        d1: (Date.UTC(m === 11 ? y + 1 : y, (m + 1) % 12, 1) - epochMs) / DAY_MS,
-      };
-    });
-    this.maxCount = Math.max(1, ...this.bins.map((b) => b.count));
+    this.setHistogram(h, false);
 
     // Year gridlines: every 5 years across the catalogue span.
     const y0 = h.start_year ?? 1975;
@@ -212,5 +203,21 @@ export class Timeline {
   setHandoff(days) {
     this.handoffDays = days;
     this.paint();
+  }
+
+  /** Swap the monthly histogram (the seek bar serves both catalogues). */
+  setHistogram(histogram, repaint = true) {
+    const h = histogram ?? { counts: [] };
+    this.bins = h.counts.map((count, i) => {
+      const y = h.start_year + Math.floor((h.start_month - 1 + i) / 12);
+      const m = (h.start_month - 1 + i) % 12;
+      return {
+        count,
+        d0: (Date.UTC(y, m, 1) - this.epochMs) / DAY_MS,
+        d1: (Date.UTC(m === 11 ? y + 1 : y, (m + 1) % 12, 1) - this.epochMs) / DAY_MS,
+      };
+    });
+    this.maxCount = Math.max(1, ...this.bins.map((b) => b.count));
+    if (repaint) this.paint();
   }
 }

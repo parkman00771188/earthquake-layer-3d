@@ -138,6 +138,21 @@ def main() -> int:
     log(f"[global] basemap.json: {len(coast)} coast strips ({npts:,} pts), "
         f"{len(plates)} plate strips")
 
+    # Monthly histogram across every band, for the timeline seek bar.
+    from datetime import timedelta
+    counts: dict[int, int] = {}
+    for k, _, _ in BANDS:
+        for e in bands[k]:
+            d = EPOCH + timedelta(seconds=e[0])
+            counts[d.year * 12 + (d.month - 1)] = counts.get(d.year * 12 + (d.month - 1), 0) + 1
+    first = min(counts) if counts else 1975 * 12
+    last = max(counts) if counts else first
+    histogram = {
+        "start_year": first // 12,
+        "start_month": first % 12 + 1,
+        "counts": [counts.get(m, 0) for m in range(first, last + 1)],
+    }
+
     total = sum(i["count"] for i in infos)
     times = [e[0] for k, _, _ in BANDS for e in bands[k][-1:]]
     meta = {
@@ -147,6 +162,7 @@ def main() -> int:
         "count": total,
         "time_end_seconds": int(max(times)) if times else 0,
         "bands": infos,
+        "histogram": histogram,
     }
     with open(os.path.join(OUT, "meta.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2)

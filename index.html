@@ -224,24 +224,24 @@
 
     <section>
       <h2>지도</h2>
-      <div class="checks">
+      <div class="checks jp-only">
         <label><input type="checkbox" id="ck-land" checked> 지도 (땅 채우기)</label>
       </div>
-      <label class="row" id="row-land">
+      <label class="row jp-only" id="row-land">
         <span>지도 불투명도</span>
         <output id="out-land">50%</output>
         <input type="range" id="in-land" min="0" max="100" step="5" value="50">
       </label>
       <div class="checks">
         <label><input type="checkbox" id="ck-coast" checked> 해안선</label>
-        <label><input type="checkbox" id="ck-admin" checked> 행정 경계 <em>(도·현)</em></label>
+        <label class="jp-only"><input type="checkbox" id="ck-admin" checked> 행정 경계 <em>(도·현)</em></label>
         <label><input type="checkbox" id="ck-plates" checked> 판 경계</label>
-        <label><input type="checkbox" id="ck-box" checked> 깊이 상자 · 격자</label>
+        <label class="jp-only"><input type="checkbox" id="ck-box" checked> 깊이 상자 · 격자</label>
       </div>
-      <p class="hint" id="land-hint"></p>
+      <p class="hint jp-only" id="land-hint"></p>
     </section>
 
-    <section>
+    <section class="jp-only">
       <h2>시점</h2>
       <div class="chips wide" id="view-presets">
         <button data-v="iso" class="on">입체</button>

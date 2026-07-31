@@ -332,7 +332,6 @@ class App {
     this.controls.enabled = !globeMode;
 
     if (globeMode) {
-      this.setPlaying(false);
       this.closeCard?.();
       if (!this.globe) {
         // Lazy: the globe module and its data cost nothing until first use.
@@ -340,14 +339,57 @@ class App {
         this.globe = new GlobeView(this.renderer, this.canvas);
         this.globe.resize(window.innerWidth, window.innerHeight,
           this.renderer.getPixelRatio());
-        this.globe.load($('globe-status'));
+        this.globe.setInsets(this.viewInsets());
+        this.globe.load($('globe-status'), this.quakes.uniforms,
+          this.data.totalDays, () => this.onGlobeReady());
       }
       this.globe.setActive(true);
+      this.globe.controls.autoRotate = $('ck-spin').checked;
+      if (this.globe.layer) this.useGlobeData(true);
     } else {
       this.globe?.setActive(false);
+      this.useGlobeData(false);
       this.recenter();
     }
     this.dirty = true;
+  }
+
+  /** First arrival of the worldwide cloud: apply the current panel state. */
+  onGlobeReady() {
+    this.globe.setCoastVisible($('ck-coast').checked);
+    this.globe.setPlatesVisible($('ck-plates').checked);
+    this.syncTime();
+    if (this.view === 'globe') this.useGlobeData(true);
+  }
+
+  /** Point the shared feed / stats / timeline at the active catalogue. */
+  useGlobeData(globe) {
+    const g = this.globe;
+    if (globe && g?.layer) {
+      this.globeData ??= {
+        events: g.layer.events,
+        dateAt: (i) => new Date(this.data.epochMs + g.layer.events.t[i] * 1000),
+        placeOf: (i) => {
+          const la = g.layer.events.lat[i];
+          const lo = g.layer.events.lon[i];
+          return `${Math.abs(la).toFixed(1)}°${la >= 0 ? 'N' : 'S'} `
+            + `${Math.abs(lo).toFixed(1)}°${lo >= 0 ? 'E' : 'W'}`;
+        },
+      };
+      this.feed.layer = g.layer;
+      this.feed.data = this.globeData;
+      $('stat-total').textContent = nf.format(g.layer.count);
+      this.timeline.setHistogram(g.meta.histogram);
+    } else {
+      this.feed.layer = this.quakes;
+      this.feed.data = this.data;
+      $('stat-total').textContent = nf.format(this.data.events.count);
+      this.timeline.setHistogram(this.meta.histogram);
+    }
+    this.feed.setSelected(null);
+    this.feed.lastKey = '';
+    this.feed.render(true);
+    this.updateStats();
   }
 
   /**
@@ -363,6 +405,7 @@ class App {
     // event list on the left pull opposite ways, so use the difference.
     this.camera.setViewOffset(width, height, (right - left) / 2, bottom / 2, width, height);
     this.camera.updateProjectionMatrix();
+    this.globe?.setInsets({ width, height, left, right, bottom });
     this.dirty = true;
   }
 
@@ -727,9 +770,17 @@ class App {
       this.dirty = true;
     }, String(s.colorMode));
     check('ck-additive', (on) => { this.quakes.setAdditive(on); this.dirty = true; });
-    check('ck-coast', (on) => { this.ref.setCoastVisible(on); this.dirty = true; });
+    check('ck-coast', (on) => {
+      this.ref.setCoastVisible(on);
+      this.globe?.setCoastVisible(on);
+      this.dirty = true;
+    });
     check('ck-admin', (on) => { this.ref.setAdminVisible(on); this.dirty = true; });
-    check('ck-plates', (on) => { this.ref.setPlatesVisible(on); this.dirty = true; });
+    check('ck-plates', (on) => {
+      this.ref.setPlatesVisible(on);
+      this.globe?.setPlatesVisible(on);
+      this.dirty = true;
+    });
 
     /* map layer */
     const landOK = !!this.meta.land?.path;
@@ -760,7 +811,11 @@ class App {
       this.labels.setVisible(on);
       this.dirty = true;
     });
-    check('ck-spin', (on) => { this.controls.autoRotate = on; this.dirty = true; });
+    check('ck-spin', (on) => {
+      this.controls.autoRotate = on;
+      if (this.globe) this.globe.controls.autoRotate = on;
+      this.dirty = true;
+    });
 
     chips($('view-presets'), (btn) => this.applyPreset(btn.dataset.v));
 
@@ -943,6 +998,7 @@ class App {
     const s = this.state;
     const win = s.mode === 'window' ? s.windowDays : null;
     this.quakes.setTime(s.now, win, s.rangeStart);
+    this.globe?.layer?.setTime(s.now, win, s.rangeStart);
     this.timeline.set(s.now, win, [s.rangeStart, s.rangeEnd]);
 
     const at = this.daysToDate(s.now);
@@ -957,7 +1013,9 @@ class App {
   }
 
   updateStats() {
-    const { count, peak } = this.quakes.summarize();
+    const layer = this.view === 'globe' && this.globe?.layer
+      ? this.globe.layer : this.quakes;
+    const { count, peak } = layer.summarize();
     $('stat-visible').textContent = nf.format(count);
     $('stat-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
     this.feed?.render();
@@ -1049,13 +1107,6 @@ class App {
       const dt = Math.min(0.1, this.clock.getDelta());
       const s = this.state;
 
-      // The globe runs its own scene/camera and animates continuously.
-      if (this.view === 'globe' && this.globe) {
-        this.globe.update(dt);
-        this.renderer.render(this.globe.scene, this.globe.camera);
-        return;
-      }
-
       if (s.playing) {
         s.now += s.speed * dt;
         if (s.now >= s.rangeEnd) {
@@ -1063,6 +1114,17 @@ class App {
           else { s.now = s.rangeEnd; this.setPlaying(false); }
         }
         this.syncTime();
+      }
+
+      // The globe runs its own scene/camera and animates continuously; it
+      // shares the playhead, filters and stats with the Japan view.
+      if (this.view === 'globe' && this.globe) {
+        const tg = performance.now();
+        if (this.statsDue && tg - statAt > 110) { statAt = tg; this.updateStats(); }
+        this.globe.layer?.syncFrom(this.quakes, s);
+        this.globe.update(dt);
+        this.renderer.render(this.globe.scene, this.globe.camera);
+        return;
       }
 
       if (this.controls.autoRotate) this.dirty = true;

@@ -444,7 +444,7 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
   font-variant-numeric: tabular-nums;
 }
 .row > input[type=range], .dual-track, .row .nudge { grid-column: 1 / -1; margin-top: 3px; }
-.row.hide { display: none; }
+.row.hide, #row-ocean.hide { display: none; }
 
 /* a slider flanked by its -/+ nudge buttons */
 .nudge { display: flex; align-items: center; gap: 6px; min-width: 0; }

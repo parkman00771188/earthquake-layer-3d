@@ -484,11 +484,17 @@ export class GlobeView {
     this.applyMapStyle();
   }
 
+  /** Satellite mode only: ocean on = full imagery; off = clipped to land. */
+  setOceanVisible(on) {
+    this.oceanOn = on;
+    this.applyMapStyle();
+  }
+
   applyMapStyle() {
     const m = this.landMaterial;
     if (this.mapStyle === 'sat' && this.satTex) {
       m.map = this.satTex;
-      m.alphaMap = null;
+      m.alphaMap = (this.oceanOn ?? true) ? null : (this.maskTex ?? null);
       m.color.set(0xffffff);
       this.land.visible = true;
     } else if (this.mapStyle === 'fill') {

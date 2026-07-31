@@ -41,7 +41,7 @@ const SAVED_INPUTS = [
   'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
   'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
   ...Array.from({ length: 10 }, (_, i) => `ck-band-${i + 1}`),
-  'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box',
+  'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box', 'ck-ocean',
   'ck-spin', 'ck-loop',
   'sel-speed',
 ];
@@ -362,6 +362,7 @@ class App {
   onGlobeReady() {
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
+    this.globe.setOceanVisible($('ck-ocean').checked);
     this.globe.setMapStyle(this.state.mapStyle);
     this.globe.setLandOpacity(+$('in-land').value / 100);
     this.syncTime();
@@ -794,8 +795,14 @@ class App {
       this.ref.setMapStyle(v);
       this.globe?.setMapStyle(v);
       $('row-land').classList.toggle('hide', v === 'off');
+      $('row-ocean').classList.toggle('hide', v !== 'sat');
       this.dirty = true;
     }, this.saved.mapStyle ?? 'sat');
+    check('ck-ocean', (on) => {
+      this.ref.setOceanVisible(on);
+      this.globe?.setOceanVisible(on);
+      this.dirty = true;
+    });
     slider('in-land', (v) => {
       this.ref.setLandOpacity(v / 100);
       this.globe?.setLandOpacity(v / 100);

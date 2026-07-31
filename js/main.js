@@ -567,7 +567,8 @@ class App {
     for (let m = 1; m <= 10; m++) {
       slider(`in-msize-${m}`, (v) => {
         this.quakes.uniforms.uMagSizes.value[m - 1] = v;
-        $(`out-msize-${m}`).textContent = v.toFixed(2);
+        // Up to 3 decimals, trailing zeros trimmed: "1.1", "0.001", "19.2".
+        $(`out-msize-${m}`).textContent = String(+v.toFixed(3));
         this.renderMagKey();
         this.dirty = true;
       });
@@ -585,7 +586,10 @@ class App {
         b.textContent = txt;
         b.addEventListener('click', (ev) => {
           ev.preventDefault();
-          if (dir > 0) input.stepUp(); else input.stepDown();
+          // data-nudge lets ultra-fine sliders (step 0.001) move a useful
+          // amount per click instead of an imperceptible single step.
+          const n = +input.dataset.nudge || 1;
+          if (dir > 0) input.stepUp(n); else input.stepDown(n);
           input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         return b;

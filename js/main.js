@@ -41,7 +41,7 @@ const SAVED_INPUTS = [
   'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
   'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
   ...Array.from({ length: 10 }, (_, i) => `ck-band-${i + 1}`),
-  'ck-additive', 'ck-land', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box',
+  'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box',
   'ck-spin', 'ck-loop',
   'sel-speed',
 ];
@@ -125,6 +125,7 @@ class App {
       loop: true,
       exag: 1.6,
       colorMode: this.saved.colorMode ?? 0,
+      mapStyle: this.saved.mapStyle ?? 'fill',
     };
     this.view = 'japan';               // 'japan' | 'globe'; Japan is the opener
 
@@ -243,6 +244,7 @@ class App {
       inputs,
       mode: this.state.mode,
       colorMode: this.state.colorMode,
+      mapStyle: this.state.mapStyle,
       range: [this.state.rangeStart, this.state.rangeEnd],
       now: this.state.now,
       spanPreset: $('span-presets').querySelector('button.on')?.dataset.span ?? null,
@@ -360,7 +362,7 @@ class App {
   onGlobeReady() {
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
-    this.globe.setLandVisible($('ck-land').checked);
+    this.globe.setMapStyle(this.state.mapStyle);
     this.globe.setLandOpacity(+$('in-land').value / 100);
     this.syncTime();
     if (this.view === 'globe') this.useGlobeData(true);
@@ -786,32 +788,22 @@ class App {
       this.dirty = true;
     });
 
-    /* map layer */
-    const landOK = !!this.meta.land?.path;
-    check('ck-land', (on) => {
-      this.ref.setLandVisible(on);
-      this.globe?.setLandVisible(on);
-      $('row-land').classList.toggle('hide', !on);
+    /* map layer: off / flat fill / satellite imagery */
+    seg($('seg-mapstyle'), (v) => {
+      this.state.mapStyle = v;
+      this.ref.setMapStyle(v);
+      this.globe?.setMapStyle(v);
+      $('row-land').classList.toggle('hide', v === 'off');
       this.dirty = true;
-    });
+    }, this.saved.mapStyle ?? 'fill');
     slider('in-land', (v) => {
       this.ref.setLandOpacity(v / 100);
       this.globe?.setLandOpacity(v / 100);
       $('out-land').textContent = `${v}%`;
       this.dirty = true;
     });
-    if (!landOK) {
-      // No baked texture: say so rather than offering a control that does nothing.
-      $('ck-land').checked = false;
-      $('ck-land').disabled = true;
-      $('row-land').classList.add('hide');
-      $('land-hint').textContent =
-        'data/land.png 이 없습니다. update.bat --build-only 로 지도를 생성하세요.';
-    } else {
-      const L = this.meta.land;
-      $('land-hint').textContent =
-        `Natural Earth 육지 폴리곤을 ${L.width}×${L.height} 마스크로 구워 표면에 덮습니다.`;
-    }
+    $('land-hint').textContent =
+      '면 채우기는 Natural Earth 육지 마스크, 위성사진은 NASA Blue Marble 영상입니다.';
     check('ck-box', (on) => {
       this.ref.setCageVisible(on);
       this.labels.setVisible(on);

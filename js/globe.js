@@ -389,8 +389,9 @@ export class GlobeView {
     });
     this.land = new THREE.Mesh(latLonSphere(R * 0.995), this.landMaterial);
     this.land.renderOrder = -10;
-    this.land.visible = false;             // until the mask texture arrives
+    this.land.visible = false;             // until a style + texture exist
     this.scene.add(this.land);
+    this.mapStyle = 'fill';
 
     this.layer = null;
     this.meta = null;
@@ -410,10 +411,9 @@ export class GlobeView {
             tex.colorSpace = THREE.NoColorSpace;
             tex.minFilter = THREE.LinearMipmapLinearFilter;
             tex.generateMipmaps = true;
-            this.landMaterial.alphaMap = tex;
-            this.landMaterial.needsUpdate = true;
+            this.maskTex = tex;
             this.landAvailable = true;
-            this.land.visible = this.landWanted ?? true;
+            this.applyMapStyle();
           });
         }
 
@@ -461,12 +461,46 @@ export class GlobeView {
 
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
-  setLandVisible(on) {
-    this.landWanted = on;
-    this.land.visible = on && !!this.landAvailable;
-  }
   setLandOpacity(v) { this.landMaterial.opacity = v; }
   setActive(on) { this.controls.enabled = on; }
+
+  /** 'off' | 'fill' (masked flat colour) | 'sat' (Blue Marble, ocean too). */
+  setMapStyle(style) {
+    this.mapStyle = style;
+    if (style === 'sat' && !this.satTex && !this.satLoading) {
+      this.satLoading = true;
+      new THREE.TextureLoader().load(
+        'data/global/earth.jpg',
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = 4;
+          this.satTex = tex;
+          this.applyMapStyle();
+        },
+        undefined,
+        (err) => console.warn('earth.jpg failed to load:', err),
+      );
+    }
+    this.applyMapStyle();
+  }
+
+  applyMapStyle() {
+    const m = this.landMaterial;
+    if (this.mapStyle === 'sat' && this.satTex) {
+      m.map = this.satTex;
+      m.alphaMap = null;
+      m.color.set(0xffffff);
+      this.land.visible = true;
+    } else if (this.mapStyle === 'fill') {
+      m.map = null;
+      m.alphaMap = this.maskTex ?? null;
+      m.color.set(0x41608c);
+      this.land.visible = !!this.landAvailable;
+    } else {
+      this.land.visible = false;
+    }
+    m.needsUpdate = true;
+  }
 
   update() { this.controls.update(); }
 

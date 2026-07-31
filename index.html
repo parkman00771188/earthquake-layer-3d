@@ -224,8 +224,13 @@
 
     <section>
       <h2>지도</h2>
-      <div class="checks">
-        <label><input type="checkbox" id="ck-land" checked> 지도 (땅 채우기)</label>
+      <div class="field">
+        <span>지도 스타일</span>
+        <div class="seg" id="seg-mapstyle" role="radiogroup" aria-label="지도 스타일">
+          <button data-v="off">없음</button>
+          <button data-v="fill" class="on">면 채우기</button>
+          <button data-v="sat">위성사진</button>
+        </div>
       </div>
       <label class="row" id="row-land">
         <span>지도 불투명도</span>

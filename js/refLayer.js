@@ -84,6 +84,7 @@ export class RefLayer {
    */
   buildLand(meta, onReady) {
     const p = this.proj;
+    this.repaint = onReady;
     const geo = new THREE.PlaneGeometry(p.width, p.height);
     geo.rotateX(-Math.PI / 2);             // lie flat: plane +y -> scene -z (north)
 
@@ -100,14 +101,14 @@ export class RefLayer {
     this.land.position.set((p.xMin + p.xMax) / 2, 0, (p.zMin + p.zMax) / 2);
     this.land.renderOrder = -10;
     this.land.frustumCulled = false;
+    this.land.visible = false;             // shown once a style + texture exist
     this.group.add(this.land);
+    this.mapStyle = 'fill';
 
     if (!meta?.land?.path) {
-      this.land.visible = false;           // no texture baked; nothing to show
       this.landAvailable = false;
       return;
     }
-    this.landAvailable = true;
 
     new THREE.TextureLoader().load(
       `data/${meta.land.path}`,
@@ -117,18 +118,61 @@ export class RefLayer {
         tex.magFilter = THREE.LinearFilter;
         tex.generateMipmaps = true;
         tex.anisotropy = this.maxAnisotropy ?? 4;
-        this.landMaterial.alphaMap = tex;
-        this.landMaterial.needsUpdate = true;
+        this.maskTex = tex;
+        this.landAvailable = true;
+        this.applyMapStyle();
         onReady?.();
       },
       undefined,
       (err) => {
         console.warn('land.png failed to load:', err);
-        this.land.visible = false;
         this.landAvailable = false;
         onReady?.();
       },
     );
+  }
+
+  /**
+   * 'off' | 'fill' (flat colour through the land/water mask) | 'sat'
+   * (Blue Marble imagery, ocean included). One quad, one material -- the
+   * style just swaps which texture drives it.
+   */
+  setMapStyle(style) {
+    this.mapStyle = style;
+    if (style === 'sat' && !this.satTex && !this.satLoading) {
+      this.satLoading = true;
+      new THREE.TextureLoader().load(
+        'data/earth-japan.jpg',
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.anisotropy = this.maxAnisotropy ?? 4;
+          this.satTex = tex;
+          this.applyMapStyle();
+          this.repaint?.();
+        },
+        undefined,
+        (err) => console.warn('earth-japan.jpg failed to load:', err),
+      );
+    }
+    this.applyMapStyle();
+  }
+
+  applyMapStyle() {
+    const m = this.landMaterial;
+    if (this.mapStyle === 'sat' && this.satTex) {
+      m.map = this.satTex;
+      m.alphaMap = null;
+      m.color.set(0xffffff);
+      this.land.visible = true;
+    } else if (this.mapStyle === 'fill') {
+      m.map = null;
+      m.alphaMap = this.maskTex ?? null;
+      m.color.set(0x2f4a63);
+      this.land.visible = !!this.landAvailable;
+    } else {
+      this.land.visible = false;
+    }
+    m.needsUpdate = true;
   }
 
   buildCage(mat) {
@@ -186,10 +230,6 @@ export class RefLayer {
   setAdminVisible(on) {
     if (this.admin) this.admin.visible = on;
     if (this.borders) this.borders.visible = on;
-  }
-
-  setLandVisible(on) {
-    if (this.land) this.land.visible = on && this.landAvailable;
   }
 
   setLandOpacity(v) {

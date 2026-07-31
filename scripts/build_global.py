@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG = os.path.join(ROOT, "data", "raw", "global", "catalog.csv")
+ISC_CATALOG = os.path.join(ROOT, "data", "raw", "global", "isc_catalog.csv")
 COAST = os.path.join(ROOT, "data", "raw", "ne_coastline.geojson")
 PLATES = os.path.join(ROOT, "data", "raw", "plates.json")
 LAND = os.path.join(ROOT, "data", "raw", "ne_10m_land.geojson")
@@ -48,15 +49,19 @@ def log(msg: str) -> None:
 
 
 def parse_time(s: str) -> float:
-    # "2024-01-31T12:34:56.789Z" -> seconds since EPOCH
+    # "2024-01-31T12:34:56.789Z" -> seconds since EPOCH. ISC timestamps come
+    # without a zone suffix; both catalogues are UTC.
     dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
     return (dt - EPOCH).total_seconds()
 
 
-def read_events() -> dict[str, list[tuple[float, float, float, float, float]]]:
-    bands: dict[str, list] = {k: [] for k, _, _ in BANDS}
+def read_catalog(path: str, src: int) -> list[tuple]:
+    """(t, lon, lat, depth, mag, src) rows; malformed lines are dropped."""
+    out = []
     bad = 0
-    with open(CATALOG, newline="", encoding="utf-8") as fh:
+    with open(path, newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             try:
                 t = parse_time(row["time"])
@@ -70,14 +75,73 @@ def read_events() -> dict[str, list[tuple[float, float, float, float, float]]]:
             if t < 0 or not (-90 <= lat <= 90) or mag < 2.0:
                 bad += 1
                 continue
-            depth = min(max(depth, 0.0), 700.0)
-            for key, lo, hi in BANDS:
-                if lo <= mag < hi:
-                    bands[key].append((t, lon, lat, depth, mag))
-                    break
+            out.append((t, lon, lat, min(max(depth, 0.0), 700.0), mag, src))
     if bad:
-        log(f"[global] skipped {bad} malformed rows")
-    return bands
+        log(f"[global] {os.path.basename(path)}: skipped {bad} malformed rows")
+    return out
+
+
+DUP_SECONDS = 12.0                    # same quake if within this and ~0.8 deg
+SRC_USGS, SRC_ISC = 0, 1
+
+
+def _near(a: tuple, b: tuple) -> bool:
+    import math
+    if abs(a[2] - b[2]) > 0.8:
+        return False
+    d = abs(a[1] - b[1])
+    if d > 180:
+        d = 360 - d
+    lim = min(8.0, 0.8 / max(0.15, math.cos(math.radians(a[2]))))
+    return d <= lim
+
+
+def dedup(events: list[tuple]) -> tuple[list[tuple], int]:
+    """
+    Collapse cross-catalogue duplicates: both the ISC Bulletin and ComCat carry
+    most significant quakes, as slightly different solutions. Events closer
+    than DUP_SECONDS and ~0.8 deg are treated as one; the ISC solution wins
+    (it is the reviewed, multi-network one).
+    """
+    events.sort(key=lambda e: e[0])
+    dropped = [False] * len(events)
+    win: list[int] = []                # indices of kept events in the time window
+    removed = 0
+    for i, e in enumerate(events):
+        while win and e[0] - events[win[0]][0] > DUP_SECONDS:
+            win.pop(0)
+        hit = next((j for j in win if _near(e, events[j])), None)
+        if hit is None:
+            win.append(i)
+            continue
+        removed += 1
+        if e[5] == SRC_ISC and events[hit][5] == SRC_USGS:
+            dropped[hit] = True        # the ISC solution replaces the USGS one
+            win.remove(hit)
+            win.append(i)
+        else:
+            dropped[i] = True
+    return [e for i, e in enumerate(events) if not dropped[i]], removed
+
+
+def read_events() -> tuple[dict[str, list[tuple]], dict]:
+    usgs = read_catalog(CATALOG, SRC_USGS)
+    isc = read_catalog(ISC_CATALOG, SRC_ISC) if os.path.exists(ISC_CATALOG) else []
+    log(f"[global] catalogues: USGS {len(usgs):,} rows, ISC {len(isc):,} rows")
+
+    merged, removed = dedup(usgs + isc)
+    log(f"[global] merged: {len(merged):,} events "
+        f"({removed:,} cross-catalogue duplicates collapsed)")
+
+    bands: dict[str, list] = {k: [] for k, _, _ in BANDS}
+    for e in merged:
+        for key, lo, hi in BANDS:
+            if lo <= e[4] < hi:
+                bands[key].append(e[:5])
+                break
+    sources = {"usgs_rows": len(usgs), "isc_rows": len(isc),
+               "duplicates_removed": removed}
+    return bands, sources
 
 
 def write_band(key: str, events: list) -> dict:
@@ -145,7 +209,7 @@ def main() -> int:
         sys.exit("run scripts/fetch_global.py first")
     os.makedirs(OUT, exist_ok=True)
 
-    bands = read_events()
+    bands, sources = read_events()
     infos = [write_band(k, bands[k]) for k, _, _ in BANDS]
 
     coast = strips_from_geojson(COAST, COAST_TOL_DEG)
@@ -176,7 +240,8 @@ def main() -> int:
     times = [e[0] for k, _, _ in BANDS for e in bands[k][-1:]]
     meta = {
         "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "source": "USGS ANSS ComCat, M2.0+, worldwide",
+        "source": "USGS ANSS ComCat (M2.0+) + ISC Bulletin (M3.0+), worldwide, deduplicated",
+        "sources": sources,
         "epoch": "1975-01-01T00:00:00Z",
         "count": total,
         "time_end_seconds": int(max(times)) if times else 0,

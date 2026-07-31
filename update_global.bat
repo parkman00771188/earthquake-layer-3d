@@ -11,7 +11,14 @@ where py >nul 2>nul && (set PY=py) || (set PY=python)
 
 %PY% scripts\fetch_global.py
 if %ERRORLEVEL% NEQ 0 (
-  echo [!] fetch failed -- rerun to resume from the checkpoint
+  echo [!] USGS fetch failed -- rerun to resume from the checkpoint
+  if "%1"=="" pause
+  exit /b 1
+)
+
+%PY% scripts\fetch_isc_global.py
+if %ERRORLEVEL% NEQ 0 (
+  echo [!] ISC fetch failed -- rerun to resume from the checkpoint
   if "%1"=="" pause
   exit /b 1
 )

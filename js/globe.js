@@ -363,7 +363,8 @@ export class GlobeView {
     this.controls = new OrbitControls(this.camera, canvas);
     Object.assign(this.controls, {
       enableDamping: true, dampingFactor: 0.08,
-      rotateSpeed: 0.5, zoomSpeed: 0.7, enablePan: false,
+      rotateSpeed: 0.5, zoomSpeed: 0.7,
+      enablePan: true, panSpeed: 0.7,      // right-drag moves, like the Japan view
       minDistance: R * 1.15, maxDistance: R * 8,
       autoRotate: false, autoRotateSpeed: 0.35,
       enabled: false,

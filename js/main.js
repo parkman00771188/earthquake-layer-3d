@@ -124,6 +124,7 @@ class App {
       exag: 2.5,
       colorMode: this.saved.colorMode ?? 0,
     };
+    this.view = 'japan';               // 'japan' | 'globe'; Japan is the opener
 
     this.persist = store.debounce(() => this.saveNow(), 450);
 
@@ -317,6 +318,35 @@ class App {
     this.camera.aspect = w / h;
     this.recenter();
     this.quakes.setViewportHeight(h * this.renderer.getPixelRatio());
+    this.globe?.resize(w, h, this.renderer.getPixelRatio());
+    this.dirty = true;
+  }
+
+  /* ── view switching (Japan box <-> whole-Earth globe) ────── */
+
+  async setView(v) {
+    if (v === this.view) return;
+    this.view = v;
+    const globeMode = v === 'globe';
+    document.body.classList.toggle('globe-mode', globeMode);
+    this.controls.enabled = !globeMode;
+
+    if (globeMode) {
+      this.setPlaying(false);
+      this.closeCard?.();
+      if (!this.globe) {
+        // Lazy: the globe module and its data cost nothing until first use.
+        const { GlobeView } = await import('./globe.js');
+        this.globe = new GlobeView(this.renderer, this.canvas);
+        this.globe.resize(window.innerWidth, window.innerHeight,
+          this.renderer.getPixelRatio());
+        this.globe.load($('globe-status'));
+      }
+      this.globe.setActive(true);
+    } else {
+      this.globe?.setActive(false);
+      this.recenter();
+    }
     this.dirty = true;
   }
 
@@ -517,6 +547,9 @@ class App {
       this.state.now = this.state.rangeEnd;
       this.syncTime();
     });
+
+    /* view scope: Japan detail vs whole-Earth globe */
+    seg($('seg-view'), (v) => { this.setView(v); }, 'japan');
 
     /* mode */
     seg($('seg-mode'), (v) => {
@@ -763,6 +796,7 @@ class App {
     /* keyboard */
     window.addEventListener('keydown', (ev) => {
       if (ev.target.matches('input, select, textarea')) return;
+      if (this.view !== 'japan') return;   // globe mode: only orbit, no playback keys
       const step = ev.shiftKey ? 365 : 30;
       if (ev.code === 'Space') { ev.preventDefault(); this.setPlaying(!s.playing); }
       else if (ev.key === 'ArrowRight') { this.nudge(+step); }
@@ -940,6 +974,7 @@ class App {
     this.canvas.addEventListener('pointermove', (ev) => {
       // A pick sweeps the whole visible range, so it is throttled hard and
       // skipped during playback where the range is changing every frame anyway.
+      if (this.view !== 'japan') { tip.hidden = true; return; }
       if (this.state.playing) { tip.hidden = true; return; }
       const t = performance.now();
       if (t - hoverAt < 110) return;
@@ -964,6 +999,7 @@ class App {
     });
     this.canvas.addEventListener('pointerup', (ev) => {
       // Anything beyond a few pixels of travel was an orbit drag, not a click.
+      if (this.view !== 'japan') return;
       if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 5) return;
       const i = this.picker.pick(ev.clientX, ev.clientY);
       if (i == null) return;
@@ -1012,6 +1048,13 @@ class App {
       requestAnimationFrame(frame);
       const dt = Math.min(0.1, this.clock.getDelta());
       const s = this.state;
+
+      // The globe runs its own scene/camera and animates continuously.
+      if (this.view === 'globe' && this.globe) {
+        this.globe.update(dt);
+        this.renderer.render(this.globe.scene, this.globe.camera);
+        return;
+      }
 
       if (s.playing) {
         s.now += s.speed * dt;

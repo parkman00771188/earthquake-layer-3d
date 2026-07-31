@@ -1,0 +1,33 @@
+{
+  "generated_utc": "2026-07-31T03:47:38+00:00",
+  "source": "USGS ANSS ComCat, M2.0+, worldwide",
+  "epoch": "1975-01-01T00:00:00Z",
+  "count": 1511590,
+  "time_end_seconds": 1627701284,
+  "bands": [
+    {
+      "key": "m2",
+      "path": "quakes-m2.bin",
+      "count": 756527,
+      "bytes": 15130548
+    },
+    {
+      "key": "m3",
+      "path": "quakes-m3.bin",
+      "count": 235435,
+      "bytes": 4708708
+    },
+    {
+      "key": "m4",
+      "path": "quakes-m4.bin",
+      "count": 433020,
+      "bytes": 8660408
+    },
+    {
+      "key": "m5",
+      "path": "quakes-m5.bin",
+      "count": 86608,
+      "bytes": 1732168
+    }
+  ]
+}

@@ -58,6 +58,21 @@ code {
 #labels span.depth { color: #8fa6c4; }
 #labels span.strong { color: var(--ink-dim); font-weight: 600; }
 
+/* ── globe mode ────────────────────────────────────────────── */
+/* The whole-Earth view keeps only the header; every Japan-specific overlay
+   (panel, feed, legend, timeline, axis labels) leaves the stage. */
+body.globe-mode #panel, body.globe-mode #feed, body.globe-mode #legend,
+body.globe-mode #timeline, body.globe-mode #labels, body.globe-mode #tip,
+body.globe-mode #card { display: none !important; }
+body.globe-mode #head .readout { display: none; }
+
+#seg-view { margin-top: 12px; width: fit-content; pointer-events: auto; }
+#seg-view button { padding: 5px 14px; font-size: 11px; }
+#globe-status {
+  margin-top: 9px; font-size: 11px; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── entry gate ────────────────────────────────────────────── */
 #gate {
   position: fixed; inset: 0; z-index: 2000;

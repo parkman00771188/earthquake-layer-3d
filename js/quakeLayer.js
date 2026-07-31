@@ -107,6 +107,13 @@ void main() {
   // dot's own requested size (44px at the default curve's M10 of 19.2) so slider
   // values beyond ~30 keep growing on screen instead of flattening at the cap.
   float px = sz * ${SIZE_BASE} * projectionMatrix[1][1] * uHalfHeight / max(-mv.z, 0.02);
+
+  // A point cannot rasterise below ~1 px, so past that floor it fades instead:
+  // alpha follows the covered-area ratio, keeping tiny sizes proportional
+  // (0.001 at 0.5x keeps shrinking perceptually instead of pinning at 0.8 px).
+  float sub = min(px / 0.8, 1.0);
+  vAlpha *= sub * sub;
+
   gl_PointSize = pass * clamp(px, 0.8, max(44.0, sz * 2.3));
 }
 `;

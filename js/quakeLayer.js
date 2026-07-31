@@ -91,13 +91,12 @@ void main() {
       uColorMode == 2 ? timeColor(clamp(aT / max(uTimeSpan, 1.0), 0.0, 1.0)) :
                         vec3(${hexToRgb(UNIFORM_COLOR).map((c) => c.toFixed(4)).join(',')});
 
-  // Piecewise-linear size over the M1..M10 control points; a point dragged to
-  // exactly 0 hides its magnitude band instead of leaving a 1-px residue. The
-  // hide test runs on the raw curve, before the multipliers: legitimate tiny
-  // products (0.01 x 0.01) must dim the dot, not delete it.
-  float mm = clamp(aMag, 1.0, 10.0) - 1.0;
-  float mi = min(floor(mm), 8.0);
-  float curve = mix(uMagSizes[int(mi)], uMagSizes[int(mi) + 1], mm - mi);
+  // One size per integer band, matching the M1..M10 sliders and band toggles:
+  // every M2.x event draws at exactly the M2 setting. (Blending toward the next
+  // integer made a single band look like a size gradient.) A slider dragged to
+  // exactly 0 hides its band; the test runs on the raw curve, before the
+  // multipliers, so legitimate tiny products (0.01 x 0.01) dim, not delete.
+  float curve = uMagSizes[int(clamp(floor(aMag), 1.0, 10.0)) - 1];
   float sz = curve * uMagScale * uSizeScale * (1.0 + glow * 1.6);
   pass *= step(0.0005, curve);
 
@@ -245,12 +244,10 @@ export class QuakeLayer {
     };
   }
 
-  /** Interpolated dot size for a magnitude — the CPU twin of the shader curve. */
+  /** Dot size for a magnitude — the CPU twin of the shader's banded lookup. */
   magSizeAt(m) {
     const s = this.uniforms.uMagSizes.value;
-    const mm = Math.min(Math.max(m, 1), 10) - 1;
-    const i = Math.min(Math.floor(mm), 8);
-    return s[i] + (s[i + 1] - s[i]) * (mm - i);
+    return s[Math.min(Math.max(Math.floor(m), 1), 10) - 1];
   }
 
   /**

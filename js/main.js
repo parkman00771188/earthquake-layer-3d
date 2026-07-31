@@ -567,11 +567,30 @@ class App {
     for (let m = 1; m <= 10; m++) {
       slider(`in-msize-${m}`, (v) => {
         this.quakes.uniforms.uMagSizes.value[m - 1] = v;
-        $(`out-msize-${m}`).textContent = v === 0 ? '숨김' : v.toFixed(1);
+        $(`out-msize-${m}`).textContent = v.toFixed(2);
         this.renderMagKey();
         this.dirty = true;
       });
     }
+    // -/+ nudge buttons flanking every size slider (one native step per click).
+    for (const row of document.querySelectorAll('.mag-sizes label')) {
+      const input = row.querySelector('input[type=range]');
+      const mk = (txt, dir) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'msize-btn';
+        b.textContent = txt;
+        b.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          if (dir > 0) input.stepUp(); else input.stepDown();
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        return b;
+      };
+      input.before(mk('−', -1));
+      input.after(mk('+', +1));
+    }
+
     $('btn-msize-reset').addEventListener('click', () => {
       const set = (id, v) => {
         const el = $(id);
@@ -820,13 +839,8 @@ class App {
    * catalogue's minimum magnitude changes.
    */
   renderMagKey() {
-    const sizes = this.quakes.uniforms.uMagSizes.value;
     const scale = this.quakes.uniforms.uMagScale.value;
-    const magSize = (m) => {
-      const mm = clamp(m, 1, 10) - 1;
-      const i = Math.min(Math.floor(mm), 8);
-      return (sizes[i] + (sizes[i + 1] - sizes[i]) * (mm - i)) * scale;
-    };
+    const magSize = (m) => this.quakes.magSizeAt(m) * scale;
     const lo = Math.ceil(this.meta.mag_min);
     const hi = Math.floor(this.meta.mag_max);
     const marks = [];

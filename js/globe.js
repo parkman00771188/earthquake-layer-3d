@@ -265,6 +265,39 @@ class GlobeLayer {
   }
 }
 
+/**
+ * Sphere built on the SAME lat/lon convention as the quake points, with
+ * equirectangular UVs -- SphereGeometry's own parameterisation does not line
+ * up with our longitude mapping, and a texture rotated by half a world is a
+ * miserable thing to debug.
+ */
+function latLonSphere(radius, segLon = 128, segLat = 64) {
+  const pos = [];
+  const uv = [];
+  const idx = [];
+  for (let j = 0; j <= segLat; j++) {
+    const la = ((-90 + (180 * j) / segLat) * Math.PI) / 180;
+    const c = Math.cos(la);
+    for (let i = 0; i <= segLon; i++) {
+      const lo = ((-180 + (360 * i) / segLon) * Math.PI) / 180;
+      pos.push(radius * c * Math.cos(lo), radius * Math.sin(la), -radius * c * Math.sin(lo));
+      uv.push(i / segLon, j / segLat);
+    }
+  }
+  for (let j = 0; j < segLat; j++) {
+    for (let i = 0; i < segLon; i++) {
+      const a = j * (segLon + 1) + i;
+      const b = a + segLon + 1;
+      idx.push(a, a + 1, b, a + 1, b + 1, b);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+  geo.setIndex(idx);
+  return geo;
+}
+
 function stripsToSegments(strips, radius, material) {
   let segs = 0;
   for (const s of strips) segs += s.length / 2 - 1;
@@ -341,6 +374,21 @@ export class GlobeView {
       new THREE.MeshBasicMaterial({ color: 0x080c14 }),
     ));
 
+    // Filled land, same recipe as the Japan map layer: flat colour whose
+    // shape comes from a baked land/water alphaMap, opacity slider-driven.
+    // A step brighter than the Japan quad's fill: against the pure-black space
+    // backdrop the same colour reads much darker than it does over the box.
+    this.landMaterial = new THREE.MeshBasicMaterial({
+      color: 0x41608c,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+    });
+    this.land = new THREE.Mesh(latLonSphere(R * 0.995), this.landMaterial);
+    this.land.renderOrder = -10;
+    this.land.visible = false;             // until the mask texture arrives
+    this.scene.add(this.land);
+
     this.layer = null;
     this.meta = null;
     this.loading = null;
@@ -353,6 +401,18 @@ export class GlobeView {
       try {
         say('전세계 데이터 불러오는 중…');
         this.meta = await (await fetch('data/global/meta.json')).json();
+
+        if (this.meta.land?.path) {
+          new THREE.TextureLoader().load(`data/global/${this.meta.land.path}`, (tex) => {
+            tex.colorSpace = THREE.NoColorSpace;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.generateMipmaps = true;
+            this.landMaterial.alphaMap = tex;
+            this.landMaterial.needsUpdate = true;
+            this.landAvailable = true;
+            this.land.visible = this.landWanted ?? true;
+          });
+        }
 
         fetch('data/global/basemap.json').then((r) => r.json()).then((bm) => {
           const mat = (color, opacity) => new THREE.LineBasicMaterial({
@@ -387,6 +447,11 @@ export class GlobeView {
 
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
+  setLandVisible(on) {
+    this.landWanted = on;
+    this.land.visible = on && !!this.landAvailable;
+  }
+  setLandOpacity(v) { this.landMaterial.opacity = v; }
   setActive(on) { this.controls.enabled = on; }
 
   update() { this.controls.update(); }

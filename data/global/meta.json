@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-07-31T04:10:20+00:00",
+  "generated_utc": "2026-07-31T04:21:42+00:00",
   "source": "USGS ANSS ComCat, M2.0+, worldwide",
   "epoch": "1975-01-01T00:00:00Z",
   "count": 1511590,
@@ -654,5 +654,14 @@
       3599,
       3285
     ]
+  },
+  "land": {
+    "path": "land.png",
+    "width": 4096,
+    "height": 2048,
+    "bytes": 77638,
+    "land_edges": 60349,
+    "lake_edges": 17605,
+    "land_fraction": 0.3283
   }
 }

@@ -33,6 +33,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG = os.path.join(ROOT, "data", "raw", "global", "catalog.csv")
 COAST = os.path.join(ROOT, "data", "raw", "ne_coastline.geojson")
 PLATES = os.path.join(ROOT, "data", "raw", "plates.json")
+LAND = os.path.join(ROOT, "data", "raw", "ne_10m_land.geojson")
+LAKES = os.path.join(ROOT, "data", "raw", "ne_10m_lakes.geojson")
 OUT = os.path.join(ROOT, "data", "global")
 
 EPOCH = datetime(1975, 1, 1, tzinfo=timezone.utc)
@@ -121,6 +123,23 @@ def strips_from_geojson(path: str, tol: float) -> list[list[float]]:
     return strips
 
 
+def write_land_mask() -> dict | None:
+    """Equirectangular worldwide land/water mask for the globe's fill layer."""
+    if not os.path.exists(LAND):
+        log("[global] ! ne_10m_land.geojson not found -- no land fill")
+        return None
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from rasterize import build_land_mask
+
+    path = os.path.join(OUT, "land.png")
+    info = build_land_mask(LAND, LAKES if os.path.exists(LAKES) else None,
+                           (-180.0, -90.0, 180.0, 90.0), 4096, 2048, path)
+    info["path"] = "land.png"
+    log(f"[global] land.png: {info['width']}x{info['height']}, "
+        f"{info['bytes'] / 1e3:.0f} KB, land {info['land_fraction'] * 100:.1f}%")
+    return info
+
+
 def main() -> int:
     if not os.path.exists(CATALOG):
         sys.exit("run scripts/fetch_global.py first")
@@ -163,6 +182,7 @@ def main() -> int:
         "time_end_seconds": int(max(times)) if times else 0,
         "bands": infos,
         "histogram": histogram,
+        "land": write_land_mask(),
     }
     with open(os.path.join(OUT, "meta.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2)

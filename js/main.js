@@ -61,7 +61,9 @@ async function boot() {
     showFailure(err);
     return;
   }
-  new App(data).start();
+  const app = new App(data);
+  window.__app = app;                     // console/debug access
+  app.start();
 }
 
 /**
@@ -358,6 +360,8 @@ class App {
   onGlobeReady() {
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
+    this.globe.setLandVisible($('ck-land').checked);
+    this.globe.setLandOpacity(+$('in-land').value / 100);
     this.syncTime();
     if (this.view === 'globe') this.useGlobeData(true);
   }
@@ -786,11 +790,13 @@ class App {
     const landOK = !!this.meta.land?.path;
     check('ck-land', (on) => {
       this.ref.setLandVisible(on);
+      this.globe?.setLandVisible(on);
       $('row-land').classList.toggle('hide', !on);
       this.dirty = true;
     });
     slider('in-land', (v) => {
       this.ref.setLandOpacity(v / 100);
+      this.globe?.setLandOpacity(v / 100);
       $('out-land').textContent = `${v}%`;
       this.dirty = true;
     });

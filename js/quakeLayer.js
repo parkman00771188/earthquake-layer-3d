@@ -52,6 +52,7 @@ uniform float uMinDepth, uMaxDepth;
 uniform float uSizeScale;
 uniform float uMagSizes[10];    // dot size at integer magnitudes M1..M10
 uniform float uMagScale;        // master multiplier over the whole size curve
+uniform float uMagBand[10];     // 1 shows magnitude band [m, m+1), 0 hides it
 uniform float uOpacity;
 uniform float uHalfHeight;
 uniform int   uColorMode;       // 0 depth · 1 magnitude · 2 time · 3 uniform
@@ -72,6 +73,7 @@ void main() {
   float pass =
       step(uMinMag   - EPS, aMag)   * step(aMag,   uMaxMag   + EPS) *
       step(uMinDepth - EPS, aDepth) * step(aDepth, uMaxDepth + EPS);
+  pass *= uMagBand[int(clamp(floor(aMag), 1.0, 10.0)) - 1];
 
   float age = max(uNow - aT, 0.0);
 
@@ -90,12 +92,14 @@ void main() {
                         vec3(${hexToRgb(UNIFORM_COLOR).map((c) => c.toFixed(4)).join(',')});
 
   // Piecewise-linear size over the M1..M10 control points; a point dragged to
-  // exactly 0 hides its magnitude band instead of leaving a 1-px residue.
+  // exactly 0 hides its magnitude band instead of leaving a 1-px residue. The
+  // hide test runs on the raw curve, before the multipliers: legitimate tiny
+  // products (0.01 x 0.01) must dim the dot, not delete it.
   float mm = clamp(aMag, 1.0, 10.0) - 1.0;
   float mi = min(floor(mm), 8.0);
-  float sz = mix(uMagSizes[int(mi)], uMagSizes[int(mi) + 1], mm - mi) * uMagScale * uSizeScale;
-  sz *= 1.0 + glow * 1.6;
-  pass *= step(0.0005, sz);
+  float curve = mix(uMagSizes[int(mi)], uMagSizes[int(mi) + 1], mm - mi);
+  float sz = curve * uMagScale * uSizeScale * (1.0 + glow * 1.6);
+  pass *= step(0.0005, curve);
 
   vColor = mix(col, vec3(1.0), glow * 0.72);
   vAlpha = alpha * pass;
@@ -179,6 +183,7 @@ export class QuakeLayer {
       uSizeScale: { value: 1 },
       uMagSizes: { value: [...MAG_SIZE_DEFAULTS] },
       uMagScale: { value: 1 },
+      uMagBand: { value: new Array(10).fill(1) },
       uSoft: { value: 0.3 },
       uOpacity: { value: 0.85 },
       uHalfHeight: { value: 450 },
@@ -240,6 +245,29 @@ export class QuakeLayer {
     };
   }
 
+  /** Interpolated dot size for a magnitude — the CPU twin of the shader curve. */
+  magSizeAt(m) {
+    const s = this.uniforms.uMagSizes.value;
+    const mm = Math.min(Math.max(m, 1), 10) - 1;
+    const i = Math.min(Math.floor(mm), 8);
+    return s[i] + (s[i + 1] - s[i]) * (mm - i);
+  }
+
+  /**
+   * Is this magnitude visible at all? Mirrors the two shader kill switches --
+   * band toggled off, or a size curve that lands on exactly 0 -- so the feed,
+   * the stats and the hit test agree with the pixels.
+   */
+  bandPass(m) {
+    const band = this.uniforms.uMagBand.value;
+    return band[Math.min(Math.max(Math.floor(m), 1), 10) - 1] === 1
+      && this.magSizeAt(m) > 0;
+  }
+
+  setMagBand(m, on) {
+    this.uniforms.uMagBand.value[m - 1] = on ? 1 : 0;
+  }
+
   /**
    * Visible count and largest visible magnitude in a single pass.
    *
@@ -251,7 +279,10 @@ export class QuakeLayer {
     const [lo, hi] = this.range;
     const { mLo, mHi, dLo, dHi } = this.bounds();
 
-    const unfiltered = mLo <= this.data.meta.mag_min && mHi >= this.data.meta.mag_max
+    const fullyVisible = this.uniforms.uMagBand.value.every((v) => v === 1)
+      && this.uniforms.uMagSizes.value.every((v) => v > 0);
+    const unfiltered = fullyVisible
+      && mLo <= this.data.meta.mag_min && mHi >= this.data.meta.mag_max
       && dLo <= 0 && dHi >= this.proj.depthMax;
 
     let count = 0;
@@ -265,6 +296,7 @@ export class QuakeLayer {
       }
       const d = depth[i];
       if (m < mLo || m > mHi || d < dLo || d > dHi) continue;
+      if (!fullyVisible && !this.bandPass(m)) continue;
       count++;
       if (m > best) { best = m; at = i; }
     }
@@ -280,7 +312,8 @@ export class QuakeLayer {
     if (i < lo || i >= hi) return false;
     const { mag, depth } = this.data.events;
     const { mLo, mHi, dLo, dHi } = this.bounds();
-    return mag[i] >= mLo && mag[i] <= mHi && depth[i] >= dLo && depth[i] <= dHi;
+    return mag[i] >= mLo && mag[i] <= mHi && depth[i] >= dLo && depth[i] <= dHi
+      && this.bandPass(mag[i]);
   }
 
   setAdditive(on) {

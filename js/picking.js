@@ -59,6 +59,7 @@ export class Picker {
       if (m < mLo || m > mHi) continue;
       const d = depth[i];
       if (d < dLo || d > dHi) continue;
+      if (!this.layer.bandPass(m)) continue;
 
       const wx = pos[i * 3] - ox;
       const wy = pos[i * 3 + 1] * exag - oy;

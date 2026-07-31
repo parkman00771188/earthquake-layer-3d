@@ -115,6 +115,19 @@
           <input type="range" id="in-mag-hi" min="3" max="9.1" step="0.1" value="9.1">
         </div>
       </div>
+      <div class="chips mag-bands">
+        <label><input type="checkbox" id="ck-band-1" checked>M1</label>
+        <label><input type="checkbox" id="ck-band-2" checked>M2</label>
+        <label><input type="checkbox" id="ck-band-3" checked>M3</label>
+        <label><input type="checkbox" id="ck-band-4" checked>M4</label>
+        <label><input type="checkbox" id="ck-band-5" checked>M5</label>
+        <label><input type="checkbox" id="ck-band-6" checked>M6</label>
+        <label><input type="checkbox" id="ck-band-7" checked>M7</label>
+        <label><input type="checkbox" id="ck-band-8" checked>M8</label>
+        <label><input type="checkbox" id="ck-band-9" checked>M9</label>
+        <label><input type="checkbox" id="ck-band-10" checked>M10</label>
+      </div>
+      <p class="hint">끄면 해당 규모대(예: M3 = M3.0–3.9)가 화면·목록·통계에서 제외됩니다.</p>
       <div class="row dual">
         <span>깊이 km</span>
         <output id="out-depth">0 – 700</output>
@@ -141,7 +154,7 @@
       <label class="row">
         <span>점 크기</span>
         <output id="out-size">1.0×</output>
-        <input type="range" id="in-size" min="0.3" max="3" step="0.05" value="1">
+        <input type="range" id="in-size" min="0.01" max="3" step="0.01" value="1">
       </label>
       <div class="field">
         <span>규모별 점 크기 <em>(0 = 숨김)</em></span>

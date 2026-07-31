@@ -63,6 +63,7 @@ export class EventFeed {
       if (m < mLo || m > mHi) continue;
       const d = depth[i];
       if (d < dLo || d > dHi) continue;
+      if (!this.layer.bandPass(m)) continue;
       out.push(i);
     }
     return out;

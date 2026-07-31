@@ -361,6 +361,21 @@ code {
   background: rgba(53,214,245,.12);
 }
 
+/* magnitude-band toggles: checkboxes dressed as chips so they persist like inputs */
+.mag-bands { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+.mag-bands label {
+  padding: 4px 5px; text-align: center;
+  border: 1px solid var(--line); border-radius: 5px;
+  font-size: 10px; color: var(--ink-faint); cursor: pointer;
+  transition: all .15s; user-select: none;
+}
+.mag-bands label:hover { border-color: var(--line-hi); color: var(--ink); }
+.mag-bands input { display: none; }
+.mag-bands label:has(input:checked) {
+  border-color: rgba(53,214,245,.45); color: #b6f0ff;
+  background: rgba(53,214,245,.12);
+}
+
 /* slider rows */
 .row {
   display: grid; grid-template-columns: 1fr auto; align-items: center;

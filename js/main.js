@@ -40,6 +40,7 @@ const SAVED_INPUTS = [
   'in-mag-lo', 'in-mag-hi', 'in-depth-lo', 'in-depth-hi',
   'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
   'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
+  ...Array.from({ length: 10 }, (_, i) => `ck-band-${i + 1}`),
   'ck-additive', 'ck-land', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box',
   'ck-spin', 'ck-loop',
   'sel-speed',
@@ -640,6 +641,17 @@ class App {
     depLo.addEventListener('input', syncDepth);
     depHi.addEventListener('input', syncDepth);
 
+    /* magnitude-band toggles */
+    for (let m = 1; m <= 10; m++) {
+      check(`ck-band-${m}`, (on) => {
+        this.quakes.setMagBand(m, on);
+        this.updateStats();
+        this.feed?.render(true);
+        this.renderMagKey();
+        this.dirty = true;
+      });
+    }
+
     chips($('depth-presets'), (btn) => {
       depLo.value = btn.dataset.lo;
       depHi.value = Math.min(+btn.dataset.hi, dMax);
@@ -820,12 +832,18 @@ class App {
     const marks = [];
     for (let m = lo; m <= hi; m++) marks.push(m);
 
+    // Diameters are normalised to the largest mark: with sizes spanning three
+    // orders of magnitude, any fixed px scale saturates and the top dots all
+    // look identical. Relative scale keeps every step distinguishable.
+    const bands = this.quakes.uniforms.uMagBand.value;
+    const maxSz = Math.max(...marks.map(magSize), 1e-6);
+
     $('legend-mags').innerHTML = marks.map((m, i) => {
       const sz = magSize(m);
-      const px = sz <= 0 ? 0 : Math.min(20, Math.max(2, 3 + (sz - 1) * 0.9)).toFixed(1);
+      const px = sz <= 0 ? 0 : Math.max(2, 20 * sz / maxSz).toFixed(1);
       const label = i === marks.length - 1 ? `M${m}+` : `M${m}`;
-      const dim = sz <= 0 ? ' style="opacity:.35"' : '';
-      return `<span${dim}><i style="--d:${px}px"></i>${label}</span>`;
+      const off = sz <= 0 || bands[m - 1] !== 1;
+      return `<span${off ? ' style="opacity:.35"' : ''}><i style="--d:${px}px"></i>${label}</span>`;
     }).join('');
   }
 

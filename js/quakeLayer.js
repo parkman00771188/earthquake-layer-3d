@@ -103,9 +103,10 @@ void main() {
   vColor = mix(col, vec3(1.0), glow * 0.72);
   vAlpha = alpha * pass;
 
-  // The upper clamp stops points ballooning when you fly in. It scales with the
-  // dot's own requested size (44px at the default curve's M10 of 19.2) so slider
-  // values beyond ~30 keep growing on screen instead of flattening at the cap.
+  // The upper clamp stops points ballooning when you fly in. It is affine in
+  // the dot's own requested size -- a hard max(44, sz*k) plateaus: a nearby dot
+  // pins at 44 px and stops responding to the slider until sz*k catches up.
+  // 44 + sz*k keeps growth strictly monotone at every distance.
   float px = sz * ${SIZE_BASE} * projectionMatrix[1][1] * uHalfHeight / max(-mv.z, 0.02);
 
   // A point cannot rasterise below ~1 px, so past that floor it fades instead:
@@ -114,7 +115,7 @@ void main() {
   float sub = min(px / 0.8, 1.0);
   vAlpha *= sub * sub;
 
-  gl_PointSize = pass * clamp(px, 0.8, max(44.0, sz * 2.3));
+  gl_PointSize = pass * clamp(px, 0.8, 44.0 + sz * 2.3);
 }
 `;
 

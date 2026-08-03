@@ -12,23 +12,6 @@
 </head>
 <body>
 
-<!-- ── entry gate ──────────────────────────────────────────── -->
-<div id="gate">
-  <canvas id="gate-fx"></canvas>
-  <div class="gate-center" id="gate-lock">
-    <h1>Activate the Earth.<br>Watch the Quakes.</h1>
-    <form id="gate-form">
-      <input type="password" id="gate-pass" placeholder="password"
-             autocomplete="off" spellcheck="false" aria-label="비밀번호">
-      <button type="submit">Enter</button>
-    </form>
-  </div>
-  <div class="gate-center hide" id="gate-hello">
-    <h1 id="gate-typed"></h1>
-    <button id="gate-enter" class="hide">Enter</button>
-  </div>
-</div>
-
 <canvas id="stage"></canvas>
 
 <!-- projected 3D axis labels -->
@@ -217,7 +200,7 @@
       </div>
 
       <div class="checks">
-        <label><input type="checkbox" id="ck-additive"> 발광 합성 <em>(밀집 강조)</em></label>
+        <label><input type="checkbox" id="ck-additive" checked> 발광 합성 <em>(밀집 강조)</em></label>
         <label><input type="checkbox" id="ck-spin"> 자동 회전</label>
       </div>
     </section>
@@ -243,7 +226,7 @@
       <div class="checks">
         <label><input type="checkbox" id="ck-coast" checked> 해안선</label>
         <label class="jp-only"><input type="checkbox" id="ck-admin" checked> 행정 경계 <em>(도·현)</em></label>
-        <label><input type="checkbox" id="ck-plates" checked> 판 경계</label>
+        <label><input type="checkbox" id="ck-plates"> 판 경계</label>
         <label class="jp-only"><input type="checkbox" id="ck-box" checked> 깊이 상자 · 격자</label>
       </div>
       <p class="hint jp-only" id="land-hint"></p>
@@ -335,7 +318,6 @@
   <p class="hint" id="fail-hint"></p>
 </div>
 
-<script type="module" src="js/gate.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

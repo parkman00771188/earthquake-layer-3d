@@ -757,9 +757,12 @@ input[type=checkbox]:checked::after {
   #card { right: 12px; left: 12px; width: auto; }
 }
 
-/* ── phones ───────────────────────────────────────────────── */
+/* ── mobile tab bar (hidden on desktop) ───────────────────── */
+#mtabs { display: none; }
+
+/* ── phones: an app shell with a bottom tab bar ───────────── */
 @media (max-width: 700px) {
-  :root { --panel-w: min(88vw, 340px); --tl-h: 88px; }
+  :root { --tl-h: 84px; --mtab-h: 56px; --mtab-total: calc(var(--mtab-h) + env(safe-area-inset-bottom, 0px)); }
 
   #head { top: 10px; left: 12px; }
   #head h1 { font-size: 15px; }
@@ -770,14 +773,65 @@ input[type=checkbox]:checked::after {
   #seg-view button { padding: 6px 12px; font-size: 11px; }
   #globe-status { font-size: 10px; max-width: 70vw; }
 
-  /* The panel rides over the map as a sheet; a bigger grab handle sits at
-     thumb height instead of the top corner. */
-  #panel { box-shadow: -18px 0 50px rgba(0,0,0,.55); }
-  #panel-toggle {
-    top: auto; bottom: 22px; left: -36px;
-    width: 36px; height: 52px; font-size: 15px;
+  /* bottom tabs */
+  #mtabs {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    height: var(--mtab-total); padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(5, 8, 14, .96); border-top: 1px solid var(--line);
+    backdrop-filter: blur(14px);
   }
-  .panel-scroll { padding: 14px 14px 44px; }
+  #mtabs button {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px;
+    font-size: 9.5px; color: var(--ink-faint); letter-spacing: .02em;
+  }
+  #mtabs button svg { width: 21px; height: 21px; }
+  #mtabs button.on { color: var(--accent); }
+
+  /* the map tab: timeline rides above the tabs */
+  #timeline {
+    bottom: var(--mtab-total);
+    grid-template-columns: auto 1fr; gap: 10px; padding: 0 10px;
+  }
+  #tl-range { display: none; }
+  #legend { display: none; }
+  #upd { display: none; }              /* update history is desktop fare */
+
+  /* panel: not a sidebar any more -- the 필터/설정 tabs summon it fullscreen */
+  #panel { display: none; }
+  #panel-toggle { display: none; }
+  body.m-tab-filter #panel, body.m-tab-settings #panel {
+    display: block; transform: none !important;
+    width: 100%; border-left: 0;
+    height: calc(100% - var(--mtab-total));
+  }
+  body.m-tab-filter #panel section:not(.m-filter) { display: none; }
+  body.m-tab-settings #panel section.m-filter { display: none; }
+  .panel-scroll { padding: 16px 16px 48px; }
+
+  /* list tab: the feed becomes the whole page */
+  body.m-tab-list #feed {
+    display: flex !important; flex-direction: column;
+    position: fixed; inset: 0 0 var(--mtab-total) 0;
+    width: auto; max-height: none; height: auto;
+    border: 0; border-radius: 0;
+  }
+  body.m-tab-list #feed .feed-body {
+    display: flex !important; flex-direction: column;
+    flex: 1; min-height: 0;
+  }
+  body.m-tab-list #feed-list { flex: 1; overflow-y: auto; max-height: none; }
+  body.m-tab-list #feed-toggle .caret { display: none; }
+  body.m-tab-list #feed li { padding-top: 11px; padding-bottom: 11px; }
+
+  /* sheet tabs hide the map chrome */
+  body.m-tab-list #head, body.m-tab-filter #head, body.m-tab-settings #head,
+  body.m-tab-list #timeline, body.m-tab-filter #timeline, body.m-tab-settings #timeline,
+  body.m-tab-list #card, body.m-tab-filter #card, body.m-tab-settings #card,
+  body.m-tab-list #tip, body.m-tab-filter #tip, body.m-tab-settings #tip {
+    display: none !important;
+  }
 
   /* touch targets */
   input[type=range] { height: 26px; }
@@ -786,16 +840,13 @@ input[type=checkbox]:checked::after {
   input[type=checkbox] { width: 17px; height: 17px; }
   .checks { gap: 12px; }
   .msize-btn { width: 24px; height: 24px; font-size: 13px; }
-  .seg button { padding: 8px 4px; }
-  .chips button { padding: 7px 8px; }
-  .mag-bands label { padding: 6px 5px; }
-
-  /* timeline: date + track only */
-  #timeline { grid-template-columns: auto 1fr; gap: 10px; padding: 0 10px; }
-  #tl-range { display: none; }
+  .seg button { padding: 9px 4px; }
+  .chips button { padding: 8px 8px; }
+  .mag-bands label { padding: 7px 5px; }
+  .row { margin-top: 15px; }
 
   #card {
     right: 10px; left: 10px; width: auto;
-    bottom: calc(var(--tl-h) + 12px);
+    bottom: calc(var(--tl-h) + var(--mtab-total) + 12px);
   }
 }

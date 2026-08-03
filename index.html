@@ -70,7 +70,7 @@
   <button id="panel-toggle" title="패널 접기/펴기" aria-label="패널 접기/펴기">⟩</button>
   <div class="panel-scroll">
 
-    <section>
+    <section class="m-filter">
       <h2>표시 방식</h2>
       <div class="seg" id="seg-mode" role="radiogroup" aria-label="표시 방식">
         <button data-v="accumulate" class="on">누적</button>
@@ -96,7 +96,7 @@
       </label>
     </section>
 
-    <section>
+    <section class="m-filter">
       <h2>기간</h2>
       <div class="dates">
         <label><span>시작</span><input type="date" id="in-date-a"></label>
@@ -111,7 +111,7 @@
       아래 시간바의 <b>양 끝 손잡이</b>를 끌어 조절할 수도 있습니다.</p>
     </section>
 
-    <section>
+    <section class="m-filter">
       <h2>필터</h2>
       <div class="row dual">
         <span>규모 M</span>
@@ -267,6 +267,26 @@
 
   </div>
 </aside>
+
+<!-- ── mobile tab bar ──────────────────────────────────────── -->
+<nav id="mtabs" aria-label="모바일 메뉴">
+  <button data-t="map" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>
+    <span>지도</span>
+  </button>
+  <button data-t="list">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+    <span>목록</span>
+  </button>
+  <button data-t="filter">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+    <span>필터</span>
+  </button>
+  <button data-t="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>
+    <span>설정</span>
+  </button>
+</nav>
 
 <!-- ── timeline ────────────────────────────────────────────── -->
 <footer id="timeline">

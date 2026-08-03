@@ -251,6 +251,16 @@ class GlobeLayer {
     return { count, peak: at < 0 ? null : { index: at, mag: best } };
   }
 
+  /** Is this event inside the draw range and passing every filter? */
+  isDrawn(i) {
+    const [lo, hi] = this.range;
+    if (i < lo || i >= hi) return false;
+    const { mag, depth } = this.events;
+    const { mLo, mHi, dLo, dHi } = this.bounds();
+    return mag[i] >= mLo && mag[i] <= mHi && depth[i] >= dLo && depth[i] <= dHi
+      && this.bandPass(mag[i]);
+  }
+
   setAdditive(on) {
     this.material.blending = on ? THREE.AdditiveBlending : THREE.NormalBlending;
     this.material.needsUpdate = true;

@@ -179,21 +179,44 @@ class App {
    */
   focusEvent(i) {
     const s = this.state;
-    const days = this.data.days(i);
+    // The feed serves whichever catalogue is active, so the index belongs to
+    // the active layer -- mixing them up reads garbage off the other arrays.
+    const onGlobe = this.view === 'globe' && this.globe?.layer;
+    const layer = onGlobe ? this.globe.layer : this.quakes;
+    const days = onGlobe ? layer.tDays[i] : this.data.days(i);
+
+    // Picking from the mobile list should land you on the map, looking at it.
+    if (document.body.classList.contains('m-tab-list')) this.setMobileTab('map');
 
     if (days < s.rangeStart || days > s.rangeEnd) {
       // Widen the period just enough to contain it.
       this.setRange([Math.min(s.rangeStart, days - 1), Math.max(s.rangeEnd, days + 1)]);
       markChip($('span-presets'), () => false);
     }
-    if (!this.quakes.isDrawn(i)) {
+    if (!layer.isDrawn(i)) {
       this.setPlaying(false);
       s.now = clamp(days, s.rangeStart, s.rangeEnd);
       this.syncTime();
     }
 
-    this.marker.show(i, this.quakes.positions);
     this.feed.setSelected(i);
+
+    if (onGlobe) {
+      // Swing the globe around to the epicentre; the detail card is a
+      // Japan-catalogue affair (places, source links) so it stays closed.
+      const ev = layer.events;
+      const la = (ev.lat[i] * Math.PI) / 180;
+      const lo = (ev.lon[i] * Math.PI) / 180;
+      const cam = this.globe.camera;
+      const d = cam.position.length();
+      const c = Math.cos(la);
+      cam.position.set(d * c * Math.cos(lo), d * Math.sin(la), -d * c * Math.sin(lo));
+      this.globe.controls.update();
+      this.dirty = true;
+      return;
+    }
+
+    this.marker.show(i, this.quakes.positions);
     this.showCard(i);
     this.flyTo(this.worldPos(i));
     markChip($('view-presets'), () => false);   // no longer a preset framing
@@ -361,6 +384,22 @@ class App {
     this.dirty = true;
   }
 
+  /** Mobile-only bottom tabs; the body class drives what the CSS shows. */
+  setMobileTab(t) {
+    for (const b of $('mtabs').querySelectorAll('button')) {
+      b.classList.toggle('on', b.dataset.t === t);
+    }
+    for (const c of [...document.body.classList]) {
+      if (c.startsWith('m-tab-')) document.body.classList.remove(c);
+    }
+    document.body.classList.add(`m-tab-${t}`);
+    if (t === 'list') {
+      this.feed.setOpen(true);
+      this.feed.render(true);
+    }
+    this.resize();                   // overlay set changed; recompute insets
+  }
+
   /** First arrival of the worldwide cloud: apply the current panel state. */
   onGlobeReady() {
     this.globe.setCoastVisible($('ck-coast').checked);
@@ -430,7 +469,7 @@ class App {
     const overlay = width < 700;
     const panelOver = !overlay && shown(panel) && !panel.classList.contains('collapsed');
     const feed = $('feed');
-    const feedOver = shown(feed) && !feed.classList.contains('collapsed');
+    const feedOver = !overlay && shown(feed) && !feed.classList.contains('collapsed');
 
     return {
       width,
@@ -606,6 +645,13 @@ class App {
 
     /* view scope: the whole-Earth globe opens; Japan is one click away */
     seg($('seg-view'), (v) => { this.setView(v); }, 'globe');
+
+    /* mobile bottom tabs: 지도 / 목록 / 필터 / 설정 */
+    document.body.classList.add('m-tab-map');
+    $('mtabs').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if (btn) this.setMobileTab(btn.dataset.t);
+    });
 
     /* mode */
     seg($('seg-mode'), (v) => {

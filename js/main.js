@@ -1203,6 +1203,30 @@ class App {
     requestAnimationFrame(() => {
       $('loader').classList.add('done');
       setTimeout(() => $('loader').remove(), 600);
+      setTimeout(() => this.maybeShowGestureGuide(), 800);
+    });
+  }
+
+  /**
+   * First-visit touch primer: animated pinch-to-zoom and two-finger-pan cards
+   * over the map. Touch devices and tablet-or-smaller widths only, once.
+   */
+  maybeShowGestureGuide() {
+    const KEY = 'jq4d.gestureGuideSeen';
+    const touchy = window.matchMedia('(pointer: coarse)').matches
+      || window.innerWidth <= 1024;
+    if (!touchy) return;
+    try { if (localStorage.getItem(KEY)) return; } catch { /* private mode */ }
+
+    const el = $('gguide');
+    el.hidden = false;
+    const close = () => {
+      el.hidden = true;
+      try { localStorage.setItem(KEY, '1'); } catch { /* nothing to do */ }
+    };
+    $('gg-close').addEventListener('click', close);
+    el.addEventListener('pointerdown', (ev) => {
+      if (ev.target === el) close();       // tapping the dim backdrop works too
     });
   }
 }

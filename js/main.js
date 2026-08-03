@@ -20,7 +20,7 @@ import { SelectionMarker } from './marker.js';
 import { EventFeed, ChangeFeed } from './feed.js';
 import * as store from './store.js';
 import {
-  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient,
+  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient, rampColor,
 } from './palette.js';
 
 const $ = (id) => document.getElementById(id);
@@ -637,10 +637,11 @@ class App {
     dB.addEventListener('change', onDate);
 
     chips($('span-presets'), (btn) => {
-      const span = { all: T, '10y': 3652, '1y': 365 }[btn.dataset.span] ?? T;
+      const span = { all: T, '10y': 3652, '1y': 365, '30d': 30, '7d': 7 }[btn.dataset.span] ?? T;
       this.setRange([T - span, T]);
       this.state.now = this.state.rangeEnd;
       this.syncTime();
+      markChip($('m-periods'), () => false);
     });
 
     /* view scope: the whole-Earth globe opens; Japan is one click away */
@@ -651,6 +652,49 @@ class App {
     $('mtabs').addEventListener('click', (ev) => {
       const btn = ev.target.closest('button');
       if (btn) this.setMobileTab(btn.dataset.t);
+    });
+
+    /* mobile map-tab chrome: recent cards, quick chips, period presets */
+    $('mcards-all').addEventListener('click', () => this.setMobileTab('list'));
+    $('mcards-list').addEventListener('click', (ev) => {
+      const card = ev.target.closest('.mc');
+      if (card) this.focusEvent(+card.dataset.i);
+    });
+    for (const id of ['mq-mag', 'mq-depth', 'mq-filter']) {
+      $(id).addEventListener('click', () => this.setMobileTab('filter'));
+    }
+    $('m-prev').addEventListener('click', () => this.nudge(-365));
+    $('m-next').addEventListener('click', () => this.nudge(365));
+    chips($('m-periods'), (btn) => {
+      const total = this.data.totalDays;
+      const d = btn.dataset.days === 'all' ? total : +btn.dataset.days;
+      this.setRange([total - d, total]);
+      this.state.now = this.state.rangeEnd;
+      this.syncTime();
+      markChip($('span-presets'), () => false);
+    });
+    $('m-filter-reset').addEventListener('click', () => {
+      const set = (id, v) => {
+        const el = $(id);
+        el.value = v;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      set('in-mag-lo', $('in-mag-lo').min);
+      set('in-mag-hi', $('in-mag-hi').max);
+      set('in-depth-lo', 0);
+      set('in-depth-hi', $('in-depth-hi').max);
+      for (let m = 1; m <= 10; m++) {
+        const el = $(`ck-band-${m}`);
+        if (!el.checked) {
+          el.checked = true;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      this.setRange([0, this.data.totalDays]);
+      this.state.now = this.state.rangeEnd;
+      this.syncTime();
+      markChip($('span-presets'), (b) => b.dataset.span === 'all');
+      markChip($('m-periods'), (b) => b.dataset.days === 'all');
     });
 
     /* mode */
@@ -956,6 +1000,8 @@ class App {
     const isc = spans.find((s) => s.source === 'isc');
     const usgs = spans.find((s) => s.source === 'usgs');
 
+    $('m-src').textContent = `데이터: ISC(JMA) + USGS · `
+      + `${m.time_start.slice(0, 4)}–${m.time_end.slice(0, 4)}`;
     $('head-sub').textContent = isc
       ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`
@@ -1072,11 +1118,46 @@ class App {
   updateStats() {
     const layer = this.view === 'globe' && this.globe?.layer
       ? this.globe.layer : this.quakes;
-    const { count, peak } = layer.summarize();
+    const { count, peak, energy } = layer.summarize();
     $('stat-visible').textContent = nf.format(count);
     $('stat-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
+
+    if (window.innerWidth <= 700) {
+      const t = layer.tDays;
+      const n = t.length;
+      const c24 = n ? n - layer.indexAtOrAfter(t[n - 1] - 1) : 0;
+      $('ms-24h').textContent = nf.format(c24);
+      $('ms-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
+      $('ms-energy').innerHTML = energy > 0
+        ? `${energy.toExponential(2)}<em>J</em>` : '–';
+      $('mq-mag-v').textContent = $('out-mag').textContent;
+      $('mq-depth-v').textContent = $('out-depth').textContent;
+      this.renderMobileCards();
+    }
+
     this.feed?.render();
     this.statsDue = false;
+  }
+
+  /** The horizontal "최근 발생" card strip on the mobile map tab. */
+  renderMobileCards() {
+    const data = this.feed.data;
+    const { mag, depth } = data.events;
+    const esc = (s) => String(s).replace(/[&<>]/g,
+      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+    $('mcards-list').innerHTML = this.feed.collect().slice(0, 8).map((i) => {
+      const d = data.dateAt(i);
+      const when = `${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
+        + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      return `<button class="mc" data-i="${i}">`
+        + `<b style="color:${rampColor(MAG_STOPS, mag[i])}">M${mag[i].toFixed(1)}</b>`
+        + `<span class="mc-when">${when}</span>`
+        + `<span class="mc-where">${esc(data.placeOf(i) || '')}</span>`
+        + `<span class="mc-depth"><i style="background:${rampColor(DEPTH_STOPS, depth[i])}"></i>`
+        + `${Math.round(depth[i])} km</span>`
+        + '</button>';
+    }).join('');
   }
 
   /* ── pointer ────────────────────────────────────────────── */

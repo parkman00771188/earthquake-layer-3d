@@ -141,6 +141,9 @@ class GlobeLayer {
       tDays[i] = d;
     }
     this.tDays = tDays;
+    const energy = new Float32Array(n);
+    for (let i = 0; i < n; i++) energy[i] = 10 ** (1.5 * mag[i] + 4.8);
+    this.energy = energy;
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -239,6 +242,7 @@ class GlobeLayer {
     let count = 0;
     let best = -1;
     let at = -1;
+    let energy = 0;
     for (let i = lo; i < hi; i++) {
       const m = mag[i];
       if (m < mLo || m > mHi) continue;
@@ -246,9 +250,10 @@ class GlobeLayer {
       if (d < dLo || d > dHi) continue;
       if (!this.bandPass(m)) continue;
       count++;
+      energy += this.energy[i];
       if (m > best) { best = m; at = i; }
     }
-    return { count, peak: at < 0 ? null : { index: at, mag: best } };
+    return { count, peak: at < 0 ? null : { index: at, mag: best }, energy };
   }
 
   /** Is this event inside the draw range and passing every filter? */

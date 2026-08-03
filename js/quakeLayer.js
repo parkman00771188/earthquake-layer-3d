@@ -161,6 +161,11 @@ export class QuakeLayer {
       tDays[i] = d;
     }
     this.positions = pos;
+    // Radiated energy per event (Gutenberg-Richter, joules), precomputed so
+    // the stats sweep just adds array cells instead of a million Math.pows.
+    const energy = new Float32Array(n);
+    for (let i = 0; i < n; i++) energy[i] = 10 ** (1.5 * events.mag[i] + 4.8);
+    this.energy = energy;
     // Float32 resolves to only ~5e-4 days near the end of a 50-year catalogue,
     // which is coarser than any sane draw-range epsilon and would silently drop
     // the newest events. The binary search therefore uses a Float64 copy while
@@ -294,9 +299,11 @@ export class QuakeLayer {
     let count = 0;
     let best = -1;
     let at = -1;
+    let energy = 0;
     for (let i = lo; i < hi; i++) {
       const m = mag[i];
       if (unfiltered) {
+        energy += this.energy[i];
         if (m > best) { best = m; at = i; }
         continue;
       }
@@ -304,11 +311,13 @@ export class QuakeLayer {
       if (m < mLo || m > mHi || d < dLo || d > dHi) continue;
       if (!fullyVisible && !this.bandPass(m)) continue;
       count++;
+      energy += this.energy[i];
       if (m > best) { best = m; at = i; }
     }
     return {
       count: unfiltered ? hi - lo : count,
       peak: at < 0 ? null : { index: at, mag: best },
+      energy,
     };
   }
 

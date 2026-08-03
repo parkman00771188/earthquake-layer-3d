@@ -41,16 +41,38 @@ STATES = [
 
 def main() -> int:
     os.makedirs(OUT, exist_ok=True)
+
+    # Re-gzipping 300 MB on every run would also churn the upload cache, so a
+    # tiny manifest remembers which source state each archive was made from.
+    import json
+    manifest_path = os.path.join(OUT, "manifest.json")
+    manifest = {}
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, encoding="utf-8") as fh:
+                manifest = json.load(fh)
+        except Exception:
+            manifest = {}
+
     for rel, name in ITEMS:
         src = os.path.join(ROOT, rel)
         if not os.path.exists(src):
             print(f"[archive] - {rel} (absent, skipped)")
             continue
         dst = os.path.join(OUT, name)
+        st = os.stat(src)
+        key = {"size": st.st_size, "mtime": int(st.st_mtime)}
+        if manifest.get(name) == key and os.path.exists(dst):
+            print(f"[archive] {name}: unchanged, kept")
+            continue
         with open(src, "rb") as fi, gzip.open(dst, "wb", compresslevel=6) as fo:
             shutil.copyfileobj(fi, fo, 1 << 20)
+        manifest[name] = key
         print(f"[archive] {name}: {os.path.getsize(src) / 1e6:.0f} MB "
               f"-> {os.path.getsize(dst) / 1e6:.1f} MB")
+
+    with open(manifest_path, "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh)
     for rel, name in STATES:
         src = os.path.join(ROOT, rel)
         if os.path.exists(src):

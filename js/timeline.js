@@ -171,13 +171,17 @@ export class Timeline {
     ctx.fillStyle = 'rgba(140,165,200,.22)';
     ctx.fillRect(0, plot - 0.5, w, 1);
 
-    // Year ticks + labels.
+    // Year ticks + labels. Gridlines always; labels only where they fit, so a
+    // century-long axis on a phone thins itself out instead of overlapping.
     ctx.font = '9px ui-monospace, Consolas, monospace';
     ctx.textBaseline = 'bottom';
+    let lastLabelX = -Infinity;
     for (const y of this.years) {
       const x = this.frac(y.d) * w;
       ctx.fillStyle = 'rgba(140,165,200,.16)';
       ctx.fillRect(x, 0, 1, plot);
+      if (x - lastLabelX < 34) continue;
+      lastLabelX = x;
       ctx.fillStyle = 'rgba(120,140,168,.85)';
       ctx.textAlign = x < 18 ? 'left' : x > w - 18 ? 'right' : 'center';
       ctx.fillText(String(y.year), Math.min(Math.max(x, 1), w - 1), h - 2);

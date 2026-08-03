@@ -215,7 +215,10 @@ class App {
         else el.value = v;
       }
     }
-    if (this.saved.panelCollapsed) $('panel').classList.add('collapsed');
+    // Phones start with the panel tucked away; a remembered choice wins.
+    if (this.saved.panelCollapsed ?? (window.innerWidth < 700)) {
+      $('panel').classList.add('collapsed');
+    }
     // Chips are shortcuts, not state: mark the matching one without firing it.
     // (The depth chips are matched at the end of bindUI, once the dual-range
     // values have been restored.)
@@ -422,7 +425,10 @@ class App {
     const shown = (el) => el && getComputedStyle(el).display !== 'none';
 
     const panel = $('panel');
-    const panelOver = shown(panel) && !panel.classList.contains('collapsed');
+    // On phones the panel is a temporary sheet over the map, not a fixture
+    // the camera should dodge -- shifting the scene 88vw would hide it.
+    const overlay = width < 700;
+    const panelOver = !overlay && shown(panel) && !panel.classList.contains('collapsed');
     const feed = $('feed');
     const feedOver = shown(feed) && !feed.classList.contains('collapsed');
 

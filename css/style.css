@@ -42,7 +42,10 @@ code {
   background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 4px;
 }
 
-#stage { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+#stage {
+  position: fixed; inset: 0; display: block; width: 100%; height: 100%;
+  touch-action: none;      /* one finger orbits; the browser gets no gestures */
+}
 
 /* ── projected axis labels ─────────────────────────────────── */
 #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -618,6 +621,7 @@ input[type=checkbox]:checked::after {
 .tl-track {
   position: relative; height: 56px; cursor: crosshair;
   border-radius: 5px; overflow: hidden;
+  touch-action: none;      /* dragging the playhead must not scroll the page */
   background: rgba(255,255,255,.025);
   box-shadow: inset 0 0 0 1px var(--line);
 }
@@ -751,4 +755,47 @@ input[type=checkbox]:checked::after {
   .tl-right { display: none; }
   #head .readout { gap: 13px; }
   #card { right: 12px; left: 12px; width: auto; }
+}
+
+/* ── phones ───────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  :root { --panel-w: min(88vw, 340px); --tl-h: 88px; }
+
+  #head { top: 10px; left: 12px; }
+  #head h1 { font-size: 15px; }
+  #head h1 span { font-size: 12px; }
+  #head .sub { font-size: 9px; letter-spacing: 0; }
+  .readout { gap: 12px; margin-top: 9px; }
+  #seg-view { margin-top: 9px; }
+  #seg-view button { padding: 6px 12px; font-size: 11px; }
+  #globe-status { font-size: 10px; max-width: 70vw; }
+
+  /* The panel rides over the map as a sheet; a bigger grab handle sits at
+     thumb height instead of the top corner. */
+  #panel { box-shadow: -18px 0 50px rgba(0,0,0,.55); }
+  #panel-toggle {
+    top: auto; bottom: 22px; left: -36px;
+    width: 36px; height: 52px; font-size: 15px;
+  }
+  .panel-scroll { padding: 14px 14px 44px; }
+
+  /* touch targets */
+  input[type=range] { height: 26px; }
+  input[type=range]::-webkit-slider-thumb { width: 17px; height: 17px; margin-top: -7px; }
+  input[type=range]::-moz-range-thumb { width: 17px; height: 17px; }
+  input[type=checkbox] { width: 17px; height: 17px; }
+  .checks { gap: 12px; }
+  .msize-btn { width: 24px; height: 24px; font-size: 13px; }
+  .seg button { padding: 8px 4px; }
+  .chips button { padding: 7px 8px; }
+  .mag-bands label { padding: 6px 5px; }
+
+  /* timeline: date + track only */
+  #timeline { grid-template-columns: auto 1fr; gap: 10px; padding: 0 10px; }
+  #tl-range { display: none; }
+
+  #card {
+    right: 10px; left: 10px; width: auto;
+    bottom: calc(var(--tl-h) + 12px);
+  }
 }

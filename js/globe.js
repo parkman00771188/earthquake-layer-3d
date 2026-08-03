@@ -358,7 +358,17 @@ export class GlobeView {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
-    this.camera.position.set(0, R * 0.9, R * 3.1);
+    // Open facing the app's home region: Korea/Japan (~36N 133E) dead centre.
+    {
+      const la = (32 * Math.PI) / 180;
+      const lo = (133 * Math.PI) / 180;
+      const d = R * 3.1;
+      this.camera.position.set(
+        d * Math.cos(la) * Math.cos(lo),
+        d * Math.sin(la),
+        -d * Math.cos(la) * Math.sin(lo),
+      );
+    }
 
     this.controls = new OrbitControls(this.camera, canvas);
     Object.assign(this.controls, {

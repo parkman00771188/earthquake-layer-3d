@@ -26,27 +26,23 @@ void main() {
   float r = length(gl_PointCoord - 0.5) * 2.0;
   if (r > 1.0) discard;
 
-  // A target: white core, red body, two hard white rings, and an expanding
-  // echo. Loud on purpose -- it has to be findable inside a dense cloud.
-  float core  = smoothstep(0.13, 0.08, r);
-  float disc  = smoothstep(0.47, 0.43, r);
-  float ringA = smoothstep(0.030, 0.004, abs(r - 0.27));
-  float ringB = smoothstep(0.034, 0.004, abs(r - 0.52));
-  float ringC = smoothstep(0.028, 0.004, abs(r - 0.70));
-  float halo  = smoothstep(0.95, 0.42, r) * 0.30;
-  float echo  = smoothstep(0.040, 0.0, abs(r - mix(0.70, 1.0, uPulse)))
-              * (1.0 - uPulse);
+  // Two tight white rings mark the spot; a red ring keeps expanding out of
+  // them. No filled centre -- it buried the event it was pointing at.
+  float ringA = smoothstep(0.026, 0.004, abs(r - 0.15));
+  float ringB = smoothstep(0.026, 0.004, abs(r - 0.26));
+  float echo  = smoothstep(0.034, 0.0, abs(r - mix(0.30, 1.0, uPulse)))
+              * (1.0 - uPulse * 0.85);
 
-  float white = max(max(core, echo), max(ringA, max(ringB, ringC)));
-  float a = clamp(max(white, max(disc * 0.92, halo)), 0.0, 1.0);
+  float white = max(ringA, ringB);
+  float a = clamp(white + echo, 0.0, 1.0);
   if (a <= 0.004) discard;
 
-  gl_FragColor = vec4(mix(uHot, uColor, white), a);
+  gl_FragColor = vec4(mix(uHot, uColor, white / max(a, 1e-4)), a);
 }
 `;
 
 export class SelectionMarker {
-  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 58 } = {}) {
+  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 82 } = {}) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e4);
@@ -74,7 +70,7 @@ export class SelectionMarker {
     this.index = null;
   }
 
-  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 58 * dpr; }
+  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 82 * dpr; }
 
   /** @param {number[]} positions flat xyz array from the quake layer */
   show(index, positions) {

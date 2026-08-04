@@ -48,13 +48,17 @@ const DICT = {
   '50년': { en: '50 years', ja: '50年' },
   '적용': { en: 'Apply', ja: '適用' },
   '최근 지진': { en: 'Recent earthquakes', ja: '最近の地震' },
+  '최근 발생': { en: 'Recent', ja: '最近の発生' },
+  '전체 보기': { en: 'See all', ja: 'すべて表示' },
+  '불러오는 중…': { en: 'Loading…', ja: '読み込み中…' },
+  '목록 끝': { en: 'End of list', ja: '一覧の終わり' },
   '이 시점 이전에 표시할 지진이 없습니다.': {
     en: 'No earthquakes to show before this moment.',
     ja: 'この時点より前に表示する地震がありません。',
   },
-  '현재 시점 기준 최근 10건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다': {
-    en: 'Latest 10 at the playhead · filters and period applied · tap to locate',
-    ja: '現在時点の最新10件・フィルターと期間を適用・タップで位置表示',
+  '현재 시점 기준 최근 N건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다': {
+    en: 'Latest N at the playhead · filters and period applied · tap to locate',
+    ja: '現在時点の最新N件・フィルターと期間を適用・タップで位置表示',
   },
   '깊이 (km)': { en: 'Depth (km)', ja: '深さ (km)' },
   '규모 (M)': { en: 'Magnitude (M)', ja: '規模 (M)' },

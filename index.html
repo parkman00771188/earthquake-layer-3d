@@ -59,6 +59,16 @@
   <p id="globe-status" hidden></p>
 </header>
 
+<!-- ── recent-event cards (mobile) ──────────────────────────── -->
+<div id="mcards" class="m-only collapsed">
+  <button id="mcards-toggle">
+    <span class="caret">▾</span>
+    <b data-i18n="최근 발생">최근 발생</b>
+    <em id="mcards-count">–</em>
+  </button>
+  <div id="mcards-list"></div>
+</div>
+
 <!-- ── map action buttons (layer / filter) ─────────────────── -->
 <div id="mfabs" class="m-only">
   <button id="fab-layer" aria-label="지도 레이어" data-i18n-aria="지도 레이어">
@@ -130,6 +140,19 @@
   </div>
 </div>
 
+<!-- ── full event list popup ───────────────────────────────── -->
+<div id="mall" hidden>
+  <div class="ma-box">
+    <div class="ma-head">
+      <b data-i18n="최근 지진 목록">최근 지진 목록</b>
+      <span id="ma-count"></span>
+      <button id="ma-close" aria-label="닫기" data-i18n-aria="닫기">✕</button>
+    </div>
+    <ol id="ma-list"></ol>
+    <p id="ma-more" hidden>…</p>
+  </div>
+</div>
+
 <!-- ── period popup ────────────────────────────────────────── -->
 <div id="mperiod" class="m-only" hidden>
   <div class="mp-box">
@@ -159,11 +182,13 @@
     <b data-i18n="최근 지진">최근 지진</b>
     <em id="feed-count">–</em>
   </button>
+
   <div class="feed-body">
     <ol id="feed-list"></ol>
     <p class="feed-empty" id="feed-empty" hidden data-i18n="이 시점 이전에 표시할 지진이 없습니다.">이 시점 이전에 표시할 지진이 없습니다.</p>
-    <p class="feed-note" data-i18n="현재 시점 기준 최근 10건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다">현재 시점 기준 최근 10건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다</p>
+    <p class="feed-note" id="feed-note"></p>
   </div>
+  <button id="feed-all" data-i18n="전체 보기">전체 보기</button>
 </section>
 
 <!-- ── depth legend ────────────────────────────────────────── -->

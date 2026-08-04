@@ -20,7 +20,7 @@ import { SelectionMarker } from './marker.js';
 import { EventFeed, ChangeFeed } from './feed.js';
 import * as store from './store.js';
 import {
-  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient,
+  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient, rampColor,
 } from './palette.js';
 import {
   LANGS, applyI18n, detectLang, fmtDate, fmtDays, getLang, numFmt, setLang, t,
@@ -173,6 +173,8 @@ class App {
     // otherwise eat a third of a screen that is mostly map.
     const tabletish = window.innerWidth <= 1280
       || window.innerHeight >= window.innerWidth;
+    this.feed.limit = this.feedLimit();
+    this.updateFeedNote();
     if (this.saved.feedOpen ?? !tabletish) { /* stays open */ } else {
       this.feed.setOpen(false);
     }
@@ -217,16 +219,10 @@ class App {
     this.feed.setSelected(i);
 
     if (onGlobe) {
-      // Swing the globe around to the epicentre; the detail card is a
-      // Japan-catalogue affair (places, source links) so it stays closed.
+      // Swing the globe to the epicentre, close in, and ring it. The detail
+      // card is a Japan-catalogue affair (places, source links) so it stays shut.
       const ev = layer.events;
-      const la = (ev.lat[i] * Math.PI) / 180;
-      const lo = (ev.lon[i] * Math.PI) / 180;
-      const cam = this.globe.camera;
-      const d = cam.position.length();
-      const c = Math.cos(la);
-      cam.position.set(d * c * Math.cos(lo), d * Math.sin(la), -d * c * Math.sin(lo));
-      this.globe.controls.update();
+      this.globe.focusOn(ev.lon[i], ev.lat[i], ev.depth[i]);
       this.dirty = true;
       return;
     }
@@ -373,6 +369,14 @@ class App {
     this.recenter();
     this.quakes.setViewportHeight(h * this.renderer.getPixelRatio());
     this.globe?.resize(w, h, this.renderer.getPixelRatio());
+    if (this.feed) {
+      const lim = this.feedLimit();
+      if (lim !== this.feed.limit) {
+        this.feed.limit = lim;
+        this.updateFeedNote();
+        this.feed.render(true);
+      }
+    }
     this.dirty = true;
   }
 
@@ -456,6 +460,7 @@ class App {
     $('land-hint').textContent =
       t('면 채우기는 Natural Earth 육지 마스크, 위성사진은 NASA Blue Marble 영상입니다.');
     this.renderLegend();
+    this.updateFeedNote();
     this.fillMeta();
     this.syncTime();
     this.updateStats();
@@ -470,6 +475,111 @@ class App {
       `${t('수록 기간')}: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}
 `
       + `${t('갱신 시각')}: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
+  }
+
+  /* ── event lists: side panel, mobile cards, full-list popup ── */
+
+  /** How many rows the side list carries at this width. */
+  feedLimit() {
+    const w = window.innerWidth;
+    return w <= 700 ? 10 : w <= 1280 ? 20 : 30;
+  }
+
+  updateFeedNote() {
+    $('feed-note').textContent =
+      t('현재 시점 기준 최근 N건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다')
+        .replace('N', this.feed.limit);
+  }
+
+  bindLists() {
+    $('feed-all').addEventListener('click', () => this.openAllList());
+    $('ma-close').addEventListener('click', () => { $('mall').hidden = true; });
+    $('mall').addEventListener('click', (ev) => {
+      if (ev.target === $('mall')) $('mall').hidden = true;
+    });
+    $('ma-list').addEventListener('click', (ev) => {
+      const li = ev.target.closest('li[data-i]');
+      if (!li) return;
+      $('mall').hidden = true;
+      this.focusEvent(+li.dataset.i);
+    });
+    // Pull the next page when the list nears its end.
+    $('ma-list').addEventListener('scroll', (ev) => {
+      const el = ev.target;
+      if (el.scrollTop + el.clientHeight > el.scrollHeight - 240) this.loadMoreAll();
+    });
+
+    /* mobile card strip */
+    $('mcards-toggle').addEventListener('click', () => {
+      $('mcards').classList.toggle('collapsed');
+      this.renderMobileCards();
+    });
+    $('mcards-list').addEventListener('click', (ev) => {
+      const card = ev.target.closest('.mc');
+      if (card) this.focusEvent(+card.dataset.i);
+    });
+  }
+
+  /** Open the paginated "every matching event" popup. */
+  openAllList() {
+    this.allCursor = this.feed.layer.range[1] - 1;
+    this.allDone = false;
+    $('ma-list').innerHTML = '';
+    $('ma-list').scrollTop = 0;
+    $('ma-count').textContent = '';
+    $('mall').hidden = false;
+    this.loadMoreAll();
+  }
+
+  loadMoreAll() {
+    if (this.allDone) return;
+    const page = this.feed.collectFrom(this.allCursor, 50);
+    this.allCursor = page.next;
+    this.allDone = page.done;
+
+    $('ma-list').insertAdjacentHTML('beforeend', this.rowsHtml(page.indices));
+    const shown = $('ma-list').children.length;
+    $('ma-count').textContent = `${nf.format(shown)}${this.allDone ? '' : '+'}`;
+    $('ma-more').hidden = false;
+    $('ma-more').textContent = this.allDone ? t('목록 끝') : t('불러오는 중…');
+  }
+
+  /** Shared row markup for the popup list. */
+  rowsHtml(indices) {
+    const data = this.feed.data;
+    const { mag, depth } = data.events;
+    return indices.map((i) => {
+      const d = data.dateAt(i);
+      const stamp = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+        + ` ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      return `<li data-i="${i}">`
+        + `<span class="f-mag" style="--c:${rampColor(MAG_STOPS, mag[i])}">${mag[i].toFixed(1)}</span>`
+        + `<span class="f-main"><span class="f-time">${stamp}</span>`
+        + `<span class="f-place">${escapeHtml(data.placeOf(i) || '')}</span></span>`
+        + `<span class="f-depth"><i style="background:${rampColor(DEPTH_STOPS, depth[i])}"></i>`
+        + `${Math.round(depth[i])}<em>km</em></span></li>`;
+    }).join('');
+  }
+
+  /** The horizontal card strip on the mobile map. */
+  renderMobileCards() {
+    const box = $('mcards');
+    $('mcards-count').textContent = `${this.feed.collect().length}`;
+    if (box.classList.contains('collapsed')) return;
+
+    const data = this.feed.data;
+    const { mag, depth } = data.events;
+    $('mcards-list').innerHTML = this.feed.collect().slice(0, 10).map((i) => {
+      const d = data.dateAt(i);
+      const when = `${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
+        + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      return `<button class="mc" data-i="${i}">`
+        + `<b style="color:${rampColor(MAG_STOPS, mag[i])}">M${mag[i].toFixed(1)}</b>`
+        + `<span class="mc-when">${when}</span>`
+        + `<span class="mc-where">${escapeHtml(data.placeOf(i) || '')}</span>`
+        + `<span class="mc-depth"><i style="background:${rampColor(DEPTH_STOPS, depth[i])}"></i>`
+        + `${Math.round(depth[i])} km</span></button>`;
+    }).join('');
   }
 
   bindMobile() {
@@ -849,9 +959,13 @@ class App {
     });
 
     /* view scope: the whole-Earth globe opens; Japan is one click away */
-    seg($('seg-view'), (v) => { this.setView(v); }, 'globe');
+    seg($('seg-view'), (v) => {
+      this.setView(v);
+      markChip($('dr-view'), (b) => b.dataset.v === v);
+    }, 'globe');
 
     this.bindLang();
+    this.bindLists();
     this.bindMobile();
 
     $('m-filter-reset').addEventListener('click', () => {
@@ -1305,6 +1419,7 @@ class App {
     }
 
     this.feed?.render();
+    if (window.innerWidth <= 700) this.renderMobileCards();
     this.statsDue = false;
   }
 
@@ -1528,6 +1643,8 @@ function fillTrack(track, lo, hi, min, max) {
 }
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pad = (n) => String(n).padStart(2, '0');
 
 const fmtISO = (d) =>

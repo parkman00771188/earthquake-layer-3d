@@ -69,11 +69,16 @@ export class SelectionMarker {
 
   /** @param {number[]} positions flat xyz array from the quake layer */
   show(index, positions) {
+    this.showAt(positions[index * 3], positions[index * 3 + 1], positions[index * 3 + 2]);
+    this.index = index;
+  }
+
+  /** Place the ring at an arbitrary point (the globe has no positions array). */
+  showAt(x, y, z) {
     const attr = this.points.geometry.getAttribute('position');
-    attr.setXYZ(0, positions[index * 3], positions[index * 3 + 1], positions[index * 3 + 2]);
+    attr.setXYZ(0, x, y, z);
     attr.needsUpdate = true;
     this.points.visible = true;
-    this.index = index;
   }
 
   hide() {

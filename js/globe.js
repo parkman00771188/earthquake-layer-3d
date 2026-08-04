@@ -13,6 +13,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from '../vendor/OrbitControls.js';
+import { SelectionMarker } from './marker.js';
 import {
   DEPTH_STOPS, MAG_STOPS, TIME_STOPS, UNIFORM_COLOR,
   glslRamp, hexToRgb,
@@ -418,6 +419,9 @@ export class GlobeView {
     this.scene.add(this.land);
     this.mapStyle = 'sat';
 
+    this.marker = new SelectionMarker({ color: 0xffffff });
+    this.scene.add(this.marker.points);
+
     this.layer = null;
     this.meta = null;
     this.loading = null;
@@ -484,6 +488,26 @@ export class GlobeView {
     this.layer?.syncFrom(japan, state);
   }
 
+  /**
+   * Bring an epicentre to the centre of the sphere and ring it. The camera
+   * closes to a fixed working distance so a picked event always lands at a
+   * legible zoom instead of wherever the last gesture left it.
+   */
+  focusOn(lon, lat, depth = 0) {
+    const la = (lat * Math.PI) / 180;
+    const lo = (lon * Math.PI) / 180;
+    const c = Math.cos(la);
+    const dir = new THREE.Vector3(c * Math.cos(lo), Math.sin(la), -c * Math.sin(lo));
+
+    const d = Math.min(this.camera.position.length(), R * 2.1);
+    this.camera.position.copy(dir).multiplyScalar(d);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+
+    const r = R - depth * KM2U * (this.layer?.uniforms.uDepthExag.value ?? 1);
+    this.marker.showAt(dir.x * r, dir.y * r, dir.z * r);
+  }
+
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
   setLandOpacity(v) { this.landMaterial.opacity = v; }
@@ -533,7 +557,10 @@ export class GlobeView {
     m.needsUpdate = true;
   }
 
-  update() { this.controls.update(); }
+  update(dt = 0) {
+    this.controls.update();
+    return this.marker.tick(dt);
+  }
 
   resize(w, h, pixelRatio = 1) {
     this.camera.aspect = w / h;

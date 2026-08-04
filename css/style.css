@@ -219,12 +219,14 @@ body.panel-collapsed #m-update { right: 46px; }
   position: fixed; left: 18px; top: 158px; z-index: 22;
   width: 268px;
   display: flex; flex-direction: column;
-  bottom: calc(var(--tl-h) + 178px);
+  /* Content-sized, capped so it never runs into the timeline: an empty tail
+     under a short list just looks broken. */
+  max-height: calc(100vh - 158px - var(--tl-h) - 34px);
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); backdrop-filter: blur(14px);
   overflow: hidden;
 }
-#feed.collapsed { bottom: auto; height: auto; }
+#feed.collapsed { height: auto; }
 #feed.collapsed .feed-body { display: none; }
 
 #feed-toggle {
@@ -246,6 +248,44 @@ body.panel-collapsed #m-update { right: 46px; }
 #feed-toggle em {
   font: 500 10px var(--mono); font-style: normal; color: var(--accent);
 }
+#feed-all {
+  flex: none; padding: 8px 11px; border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--accent); text-align: center;
+  transition: background .15s;
+}
+#feed-all:hover { background: rgba(53, 214, 245, .08); }
+#feed.collapsed #feed-all { display: none; }
+
+/* ── full event list popup ─────────────────────────────────── */
+#mall {
+  position: fixed; inset: 0; z-index: 76;
+  display: grid; place-items: center; padding: 24px;
+  background: rgba(3, 5, 9, .62); backdrop-filter: blur(3px);
+}
+#mall[hidden] { display: none; }
+.ma-box {
+  width: 100%; max-width: 460px; max-height: 84vh;
+  display: flex; flex-direction: column;
+  background: var(--panel-sol); border: 1px solid var(--line-hi);
+  border-radius: 15px; overflow: hidden;
+}
+.ma-head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 14px 15px 12px; border-bottom: 1px solid var(--line);
+}
+.ma-head b { flex: 1; font-size: 14.5px; }
+#ma-count { font: 500 11px/1 var(--mono); color: var(--accent); }
+#ma-close { color: var(--ink-dim); font-size: 15px; padding: 5px 7px; }
+#ma-list li { padding: 9px 14px; }
+#ma-list {
+  flex: 1; min-height: 0; margin: 0; padding: 0;
+  list-style: none; overflow-y: auto; overscroll-behavior: contain;
+}
+#ma-more {
+  flex: none; margin: 0; padding: 9px;
+  text-align: center; font: 400 10px/1 var(--mono); color: var(--ink-faint);
+  border-top: 1px solid var(--line);
+}
 
 .feed-body { display: flex; flex-direction: column; min-height: 0; }
 #feed-list {
@@ -258,14 +298,14 @@ body.panel-collapsed #m-update { right: 46px; }
   background: rgba(255,255,255,.13); border-radius: 4px;
   border: 2px solid transparent; background-clip: padding-box;
 }
-#feed-list li {
+#feed-list li, #ma-list li {
   display: grid; grid-template-columns: 30px 1fr auto;
   align-items: center; gap: 8px;
   padding: 6px 11px; cursor: pointer;
   border-bottom: 1px solid rgba(140,165,200,.07);
   transition: background .12s;
 }
-#feed-list li:hover { background: rgba(255,255,255,.055); }
+#feed-list li:hover, #ma-list li:hover { background: rgba(255,255,255,.055); }
 #feed-list li.on {
   background: rgba(53,214,245,.13);
   box-shadow: inset 2px 0 0 var(--accent);
@@ -783,11 +823,9 @@ input[type=checkbox]:checked::after {
 @media (max-height: 720px) {
   /* Not enough vertical room for both; the list keeps its own scroll. */
   #legend { display: none; }
-  #feed { bottom: calc(var(--tl-h) + 20px); }
 }
 @media (max-width: 1080px) {
   #legend { display: none; }
-  #feed { bottom: calc(var(--tl-h) + 20px); }
 }
 @media (max-width: 860px) {
   :root { --panel-w: 280px; --tl-h: 96px; }
@@ -922,7 +960,7 @@ input[type=checkbox]:checked::after {
     display: block; margin-top: 3px;
     font: 400 10.5px/1 var(--mono); color: var(--ink-faint);
   }
-  #head .readout, #head #seg-view { display: none; }
+  #head .readout { display: none; }
   .head-actions button { width: 34px; height: 34px; color: var(--ink-dim); }
   .head-actions button.m-only { display: grid; }
   .head-actions svg { width: 21px; height: 21px; }
@@ -933,7 +971,7 @@ input[type=checkbox]:checked::after {
      pill across the screen. */
   #m-update,
   body.panel-collapsed #m-update {
-    left: 12px; right: auto; top: 78px; padding: 6px 10px 6px 11px;
+    left: auto; right: 12px; top: 70px; padding: 6px 10px 6px 11px;
   }
 
   /* floating layer / filter buttons */
@@ -994,9 +1032,9 @@ input[type=checkbox]:checked::after {
   .tl-track { grid-area: track; height: 46px; }
   .tl-right { display: flex !important; grid-area: speed; }
   .tl-right .mini, .tl-right #btn-reset { display: none; }
-  .tl-right select {
-    padding: 9px 7px; border: 1px solid var(--line); border-radius: 9px;
-    background: transparent; color: var(--ink-dim); font-size: 10.5px;
+  .tl-right #sel-speed {
+    width: auto; border: 1px solid var(--line); border-radius: 9px;
+    background: rgba(0, 0, 0, .3); color: var(--ink-dim); font-size: 10.5px;
   }
 
   #legend, #upd, #feed { display: none; }
@@ -1066,8 +1104,8 @@ input[type=checkbox]:checked::after {
   .sec-map h2::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2335d6f5' stroke-width='1.7' stroke-linejoin='round'%3E%3Cpath d='M12 3 3 8l9 5 9-5-9-5z'/%3E%3Cpath d='M4.5 12 3 13l9 5 9-5-1.5-1'/%3E%3C/svg%3E"); }
 
   /* sheets and the list dim the map chrome */
-  body.m-sheet #mfabs, body.m-sheet #m-update,
-  body.m-list #m-update, body.m-list #head,
+  body.m-sheet #mfabs, body.m-sheet #m-update, body.m-sheet #mcards,
+  body.m-list #m-update, body.m-list #mcards, body.m-list #head,
   body.m-list #timeline, body.m-list #mfabs, body.m-list #card, body.m-list #tip {
     display: none !important;
   }
@@ -1162,6 +1200,66 @@ input[type=checkbox]:checked::after {
     background: rgba(53, 214, 245, .13); color: #b6f0ff;
     font-size: 13.5px; font-weight: 600;
   }
+
+
+  /* ── view switch on the map ─────────────────────────────── */
+  #head #seg-view {
+    display: flex; margin-top: 9px; pointer-events: auto;
+    background: rgba(5, 8, 14, .82); backdrop-filter: blur(12px);
+  }
+  #head #seg-view button { padding: 7px 15px; font-size: 11.5px; }
+
+  /* ── recent-event cards, collapsed by default ───────────── */
+  #mcards {
+    display: block; position: fixed; z-index: 20;
+    left: 12px; right: 0; top: 118px;
+  }
+  #mcards-toggle {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 11px; margin-bottom: 7px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; backdrop-filter: blur(12px);
+    font-size: 11px; color: var(--ink-dim);
+  }
+  #mcards-toggle .caret { font-size: 9px; transition: transform .22s; }
+  #mcards.collapsed #mcards-toggle .caret { transform: rotate(-90deg); }
+  #mcards-toggle b { font-weight: 600; }
+  #mcards-count { font: 500 10px/1 var(--mono); font-style: normal; color: var(--accent); }
+  #mcards.collapsed #mcards-list { display: none; }
+  #mcards-list {
+    display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 3px 0;
+    scrollbar-width: none;
+  }
+  #mcards-list::-webkit-scrollbar { display: none; }
+  .mc {
+    flex: 0 0 auto; min-width: 118px; max-width: 150px; text-align: left;
+    padding: 9px 11px 8px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 11px; backdrop-filter: blur(10px);
+  }
+  .mc b { font: 700 13.5px/1 var(--mono); }
+  .mc .mc-when { display: block; margin-top: 5px; font: 400 9px/1 var(--mono); color: var(--ink-faint); }
+  .mc .mc-where {
+    display: block; margin-top: 4px; font-size: 10px; color: var(--ink-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mc .mc-depth {
+    display: flex; align-items: center; gap: 5px; margin-top: 5px;
+    font: 400 9.5px/1 var(--mono); color: var(--ink-dim);
+  }
+  .mc .mc-depth i { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* The speed <select>: the native arrow goes missing on some Android builds,
+     so draw our own. Must out-specify the panel's #sel-speed rule. */
+  .tl-right #sel-speed {
+    appearance: none; -webkit-appearance: none;
+    padding: 9px 24px 9px 9px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397a6bd' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center;
+    background-size: 12px 12px;
+  }
+
+  #mall { padding: 14px; }
+  .ma-box { max-height: 82vh; }
 
   /* touch targets */
   input[type=range] { height: 26px; }

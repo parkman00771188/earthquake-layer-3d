@@ -53,20 +53,30 @@ export class EventFeed {
 
   /** Collect the newest `limit` drawn events, newest first. */
   collect() {
+    return this.collectFrom(this.layer.range[1] - 1, this.limit).indices;
+  }
+
+  /**
+   * A page of drawn events walking backwards from `start`, newest first.
+   * Returns the indices plus where to resume, so a long list can be pulled in
+   * chunks instead of materialising a million rows.
+   */
+  collectFrom(start, count) {
     const { mag, depth } = this.data.events;
     const [lo, hi] = this.layer.range;
     const { mLo, mHi, dLo, dHi } = this.layer.bounds();
 
-    const out = [];
-    for (let i = hi - 1; i >= lo && out.length < this.limit; i--) {
+    const indices = [];
+    let i = Math.min(start, hi - 1);
+    for (; i >= lo && indices.length < count; i--) {
       const m = mag[i];
       if (m < mLo || m > mHi) continue;
       const d = depth[i];
       if (d < dLo || d > dHi) continue;
       if (!this.layer.bandPass(m)) continue;
-      out.push(i);
+      indices.push(i);
     }
-    return out;
+    return { indices, next: i, done: i < lo };
   }
 
   render(force = false) {

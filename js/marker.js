@@ -28,24 +28,24 @@ void main() {
 
   const float PI = 3.14159265;
 
-  // Three white ripples travelling outward on staggered phases, so the whole
-  // target expands together instead of pulsing in place.
-  float white = 0.0;
-  for (int k = 0; k < 3; k++) {
-    float ph = fract(uPulse + float(k) / 3.0);
-    float rad = mix(0.10, 0.88, 1.0 - pow(1.0 - ph, 1.8));
-    float fade = pow(sin(PI * ph), 0.85);
-    white = max(white, smoothstep(0.030, 0.005, abs(r - rad)) * fade);
-  }
-  // A steady hairline keeps the exact spot marked between ripples.
-  white = max(white, smoothstep(0.022, 0.004, abs(r - 0.115)) * 0.55);
+  // One eased travel curve drives everything, so the rings and the red wave
+  // read as a single system rather than three independent animations.
+  float grow = 1.0 - pow(1.0 - uPulse, 1.6);
+  float breath = sin(PI * uPulse);
 
-  // The red ring rides ahead of them: faint at the centre, full mid-flight,
-  // thinning away at the rim.
-  float e = 1.0 - pow(1.0 - uPulse, 2.0);
-  float rad = mix(0.16, 1.0, e);
-  float echo = smoothstep(mix(0.040, 0.022, e), 0.0, abs(r - rad))
-             * pow(sin(PI * uPulse), 0.75);
+  // Two steady rings hold the target so it is legible at every instant; a
+  // third rides outward with the wave and fades to nothing at both ends of the
+  // cycle, which hides the loop seam.
+  float white = smoothstep(0.027, 0.005, abs(r - 0.15)) * 0.85;
+  white = max(white, smoothstep(0.026, 0.005, abs(r - 0.27)) * 0.6);
+  float rad3 = 0.40 + grow * 0.32;
+  white = max(white, smoothstep(0.028, 0.005, abs(r - rad3)) * breath * 0.85);
+
+  // The red wave runs the same curve but the whole way out, so it leads the
+  // group: faint at the centre, full mid-flight, gone at the rim.
+  float rad = mix(0.18, 1.0, grow);
+  float echo = smoothstep(mix(0.038, 0.020, grow), 0.0, abs(r - rad))
+             * pow(breath, 0.7);
 
   float a = clamp(white + echo, 0.0, 1.0);
   if (a <= 0.004) discard;
@@ -107,7 +107,7 @@ export class SelectionMarker {
   /** Advance the pulse; returns true while it still needs redrawing. */
   tick(dt) {
     if (!this.points.visible) return false;
-    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.45) % 1;
+    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.25) % 1;
     return true;
   }
 }

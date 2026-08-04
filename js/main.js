@@ -1319,8 +1319,8 @@ class App {
     $('dr-src').textContent = `데이터: ISC(JMA) + USGS\n`
       + `수록: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}\n`
       + `갱신: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
-    const built = (m.generated_utc ?? '').slice(11, 16);
-    if (built) $('m-update-txt').textContent = `업데이트 ${built}`;
+    const built = (m.generated_utc ?? '').slice(0, 10);
+    if (built) $('m-update-txt').textContent = `${t('업데이트')} ${built}`;
     $('head-sub').textContent = isc
       ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`
@@ -1497,6 +1497,8 @@ class App {
       this.marker.show(i, this.quakes.positions);
       this.feed.setSelected(i);
       this.showCard(i);
+      this.flyTo(this.worldPos(i));       // glide to it, as the list does
+      markChip($('view-presets'), () => false);
       this.dirty = true;
     });
   }

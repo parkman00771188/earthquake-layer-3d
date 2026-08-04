@@ -189,7 +189,12 @@ const DICT = {
     ja: 'USGS ANSS ComCat — 最近の地震をほぼリアルタイムで反映します。',
   },
   '해안선·판 경계·육지 마스크': { en: 'Coastlines, plate boundaries, land mask', ja: '海岸線・プレート境界・陸地マスク' },
-  '위성 영상 (Blue Marble)': { en: 'Satellite imagery (Blue Marble)', ja: '衛星画像 (Blue Marble)' },
+  '위성 영상 — Blue Marble Next Generation. 2004년 Terra 위성 MODIS 관측을 월별로 합성한 500m 해상도 무운(無雲) 영상에 해저 지형 음영을 더한 것입니다.': {
+    en: 'Satellite imagery — Blue Marble Next Generation: monthly cloud-free composites at '
+      + '500 m from Terra/MODIS in 2004, with seafloor relief shading added.',
+    ja: '衛星画像 — Blue Marble Next Generation。2004年の Terra/MODIS 観測を月ごとに合成した'
+      + '500m 解像度の無雲画像に、海底地形の陰影を加えたものです。',
+  },
   '1일 / 초': { en: '1 day / sec', ja: '1日 / 秒' },
   '1주일 / 초': { en: '1 week / sec', ja: '1週間 / 秒' },
   '1개월 / 초': { en: '1 month / sec', ja: '1ヶ月 / 秒' },

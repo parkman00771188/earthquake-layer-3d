@@ -1,6 +1,6 @@
 {
   "mode_of_last_run": "incremental",
-  "last_run_utc": "2026-08-03T05:49:00+00:00",
+  "last_run_utc": "2026-08-03T12:10:02+00:00",
   "event_count": 1236513,
   "per_source": {
     "isc": 1233657,
@@ -10,7 +10,7 @@
   "catalog_end": "2026-08-02T20:02:10.395Z",
   "handoff": "2024-10-01",
   "plan_key": "isc<2024-10-01|usgs>=2024-10-01",
-  "completed_through": "2026-08-04T05:48:48",
+  "completed_through": "2026-08-04T12:09:51",
   "scan_finished": true,
   "region": {
     "name": "Japan and surrounding seas",

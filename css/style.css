@@ -921,26 +921,8 @@ input[type=checkbox]:checked::after {
   #upd { display: none; }              /* update history is desktop fare */
   #head .readout { display: none; }    /* replaced by the stats strip */
 
-  /* stats strip + recent-event cards over the top of the map */
-  #mstats {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    position: fixed; z-index: 20; left: 12px; right: 12px; top: 96px;
-    padding: 10px 2px 9px; text-align: center;
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 12px; backdrop-filter: blur(12px);
-  }
-  #mstats div + div { border-left: 1px solid var(--line); }
-  #mstats span { display: block; font-size: 9.5px; color: var(--ink-faint); }
-  #mstats b {
-    display: block; margin-top: 5px;
-    font: 600 14.5px/1 var(--mono); font-variant-numeric: tabular-nums;
-  }
-  #mstats b em { font: 400 9px/1 var(--mono); font-style: normal; margin-left: 2px; }
-  .c-cyan { color: var(--accent); }
-  .c-amber { color: #ffb454; }
-  .c-blue { color: #7aa7ff; }
-
-  #mcards { display: block; position: fixed; z-index: 20; left: 12px; right: 0; top: 168px; }
+  /* recent-event cards over the top of the map (stats strip retired) */
+  #mcards { display: block; position: fixed; z-index: 20; left: 12px; right: 0; top: 96px; }
   .mc-head {
     display: flex; justify-content: space-between; align-items: center;
     margin: 0 12px 6px 2px; font-size: 11px; color: var(--ink-dim);

@@ -1045,8 +1045,13 @@ input[type=checkbox]:checked::after {
   /* update pill: top-left of the map, clear of the compact header. The
      collapsed-panel offset is a desktop concern; here it would stretch the
      pill across the screen. */
-  /* Under ~400 px the label and the view switch fight for the same row. */
-  @media (max-width: 400px) { #m-update-lab { display: none; } }
+  /* Under ~400 px the pill and the view switch share a row, so the pill
+     tightens up rather than dropping its label. */
+  @media (max-width: 400px) {
+    #m-update { padding: 5px 8px; font-size: 9.5px; gap: 4px; }
+    #m-update svg { width: 11px; height: 11px; }
+    #m-update i { width: 5px; height: 5px; }
+  }
 
   #m-update,
   body.panel-collapsed #m-update {

@@ -463,18 +463,12 @@ class App {
     this.fillInfo();
   }
 
-  /** Gesture list + coverage line inside the ⓘ popup. */
+  /** Coverage + build time inside the ⓘ popup. */
   fillInfo() {
-    const touch = window.matchMedia('(pointer: coarse)').matches;
-    const items = touch
-      ? ['한 손가락 드래그: 회전', '두 손가락 벌리기/오므리기: 확대·축소',
-         '두 손가락 드래그: 화면 이동', '점 탭: 지진 상세 정보']
-      : ['마우스 드래그: 회전 · 휠: 확대 · 우클릭 드래그: 이동', '점 탭: 지진 상세 정보'];
-    $('mi-gestures').innerHTML = items.map((k) => `<li>${t(k)}</li>`).join('');
-
     const m = this.meta;
     $('mi-meta').textContent =
-      `${t('수록 기간')}: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}\n`
+      `${t('수록 기간')}: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}
+`
       + `${t('갱신 시각')}: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
   }
 

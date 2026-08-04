@@ -23,13 +23,13 @@ export const LANGS = [
 const DICT = {
   '일본 주변 지진 4D': { en: 'Earthquake 4D', ja: '地震 4D' },
   '일본 주변 지진': { en: 'Earthquakes around Japan', ja: '日本周辺の地震' },
-  '전세계 지진': { en: 'Earthquakes worldwide', ja: '世界の地震' },
+  '전세계 지진': { en: 'World Earthquakes', ja: '世界の地震' },
   '데이터 불러오는 중…': { en: 'Loading data…', ja: 'データ読み込み中…' },
   '표시 중': { en: 'Shown', ja: '表示中' },
   '전체': { en: 'All', ja: '全体' },
   '최대': { en: 'Max', ja: '最大' },
   '일본': { en: 'Japan', ja: '日本' },
-  '전세계': { en: 'Worldwide', ja: '世界全体' },
+  '전세계': { en: 'World', ja: '世界' },
   '업데이트': { en: 'Update', ja: '更新' },
   '메뉴': { en: 'Menu', ja: 'メニュー' },
   '보기 범위': { en: 'View', ja: '表示範囲' },
@@ -170,22 +170,7 @@ const DICT = {
     ja: '1本指のドラッグは回転です',
   },
   '확인': { en: 'Got it', ja: 'OK' },
-  '조작 방법': { en: 'How to use', ja: '操作方法' },
   '데이터 출처': { en: 'Data sources', ja: 'データ出典' },
-  '한 손가락 드래그: 회전': { en: 'One-finger drag: rotate', ja: '1本指ドラッグ: 回転' },
-  '두 손가락 벌리기/오므리기: 확대·축소': {
-    en: 'Pinch: zoom in and out',
-    ja: '2本指の開閉: 拡大・縮小',
-  },
-  '두 손가락 드래그: 화면 이동': {
-    en: 'Two-finger drag: pan',
-    ja: '2本指ドラッグ: 画面移動',
-  },
-  '점 탭: 지진 상세 정보': { en: 'Tap a dot: quake details', ja: '点をタップ: 地震の詳細' },
-  '마우스 드래그: 회전 · 휠: 확대 · 우클릭 드래그: 이동': {
-    en: 'Drag: rotate · wheel: zoom · right-drag: pan',
-    ja: 'ドラッグ: 回転・ホイール: 拡大・右ドラッグ: 移動',
-  },
   '국제지진센터 게시록 — 전 세계 130여 관측망을 종합한 검토 카탈로그로, 일본 기상청(JMA) 자료를 포함합니다.': {
     en: 'ISC Bulletin — the reviewed catalogue that merges ~130 networks worldwide, including JMA.',
     ja: 'ISC 会報 — 世界約130の観測網を統合した査読済みカタログで、気象庁(JMA)のデータを含みます。',

@@ -181,7 +181,7 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
    reads as an action on what you are looking at. */
 #m-update {
   position: fixed; z-index: 22;
-  top: 16px; right: calc(var(--panel-w) + 18px);
+  top: 16px; right: calc(var(--panel-w) + 46px);   /* clears the grab handle */
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 12px;
   background: var(--panel); border: 1px solid var(--line);
@@ -191,7 +191,7 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
 }
 #m-update:hover { border-color: rgba(53, 214, 245, .5); color: var(--ink); }
 /* the collapsed panel frees the right edge, minus room for its grab handle */
-body.panel-collapsed #m-update { right: 62px; }
+body.panel-collapsed #m-update { right: 46px; }
 #m-update svg { width: 13px; height: 13px; }
 #m-update i {
   width: 6px; height: 6px; border-radius: 50%;
@@ -939,7 +939,7 @@ input[type=checkbox]:checked::after {
   /* floating layer / filter buttons */
   #mfabs {
     display: flex; flex-direction: column; gap: 10px;
-    position: fixed; z-index: 25; right: 12px;
+    position: fixed; z-index: 25; right: 6px;
     /* --tl-real is the timeline card's measured height, so the buttons hover
        just above it however tall the card grows. */
     bottom: calc(var(--tl-real, 180px) + 12px);
@@ -975,7 +975,10 @@ input[type=checkbox]:checked::after {
     grid-area: date; min-width: 0;
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   }
-  .tl-date b { font-size: 15px; }
+  .tl-date b { font-size: 15px; font-variant-numeric: tabular-nums; }
+  /* Pinned to the end of its column: the date's width changes every time the
+     month rolls over, and a pencil that slides with it is maddening. */
+  #m-edit-period { margin-left: auto; }
   #tl-range { flex-basis: 100%; }
   .tl-date .utc {
     display: inline-block; padding: 2px 5px; border: 1px solid var(--line-hi); border-radius: 4px;

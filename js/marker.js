@@ -28,30 +28,24 @@ void main() {
 
   const float PI = 3.14159265;
 
-  // The rings breathe a hair in and out together, so the target never looks
-  // like a frozen decal.
-  float breathe = sin(uPulse * PI * 2.0) * 0.012;
-
-  // A highlight sweeps outward through the five rings: each one brightens as
-  // the wave crosses its radius, which reads as energy leaving the epicentre.
-  float wavePos = mix(0.10, 0.95, 1.0 - pow(1.0 - uPulse, 1.7));
-
+  // Three white ripples travelling outward on staggered phases, so the whole
+  // target expands together instead of pulsing in place.
   float white = 0.0;
-  for (int k = 0; k < 5; k++) {
-    float fk = float(k);
-    float rad = 0.17 + fk * 0.155 + breathe;      // 0.17 .. 0.79
-    float base = 1.0 - fk * 0.14;                 // dimmer further out
-    float d = (rad - wavePos) / 0.11;
-    float boost = 1.0 + 1.15 * exp(-d * d);
-    white = max(white, smoothstep(0.026, 0.004, abs(r - rad)) * base * boost);
+  for (int k = 0; k < 3; k++) {
+    float ph = fract(uPulse + float(k) / 3.0);
+    float rad = mix(0.10, 0.88, 1.0 - pow(1.0 - ph, 1.8));
+    float fade = pow(sin(PI * ph), 0.85);
+    white = max(white, smoothstep(0.030, 0.005, abs(r - rad)) * fade);
   }
+  // A steady hairline keeps the exact spot marked between ripples.
+  white = max(white, smoothstep(0.022, 0.004, abs(r - 0.115)) * 0.55);
 
-  // The red ring starts faint at the centre, swells as it travels, and thins
-  // away again at the rim.
+  // The red ring rides ahead of them: faint at the centre, full mid-flight,
+  // thinning away at the rim.
   float e = 1.0 - pow(1.0 - uPulse, 2.0);
-  float rad = mix(0.18, 1.0, e);
-  float env = pow(sin(PI * uPulse), 0.75);        // faint -> full -> faint
-  float echo = smoothstep(mix(0.040, 0.022, e), 0.0, abs(r - rad)) * env;
+  float rad = mix(0.16, 1.0, e);
+  float echo = smoothstep(mix(0.040, 0.022, e), 0.0, abs(r - rad))
+             * pow(sin(PI * uPulse), 0.75);
 
   float a = clamp(white + echo, 0.0, 1.0);
   if (a <= 0.004) discard;
@@ -61,7 +55,7 @@ void main() {
 `;
 
 export class SelectionMarker {
-  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 132 } = {}) {
+  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 100 } = {}) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e4);
@@ -89,7 +83,7 @@ export class SelectionMarker {
     this.index = null;
   }
 
-  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 132 * dpr; }
+  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 100 * dpr; }
 
   /** @param {number[]} positions flat xyz array from the quake layer */
   show(index, positions) {

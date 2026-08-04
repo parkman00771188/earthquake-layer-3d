@@ -373,6 +373,8 @@ class App {
     this.camera.aspect = w / h;
     this.recenter();
     this.quakes.setViewportHeight(h * this.renderer.getPixelRatio());
+    this.marker.setPixelRatio(this.renderer.getPixelRatio());
+    this.globe?.marker.setPixelRatio(this.renderer.getPixelRatio());
     this.globe?.resize(w, h, this.renderer.getPixelRatio());
     if (this.feed) {
       const lim = this.feedLimit();
@@ -825,7 +827,7 @@ class App {
    * so the move reads as travel rather than a cut. Never zooms out: if you are
    * already closer than the default framing, the distance is left alone.
    */
-  flyTo(target, ms = 800) {
+  flyTo(target, ms = 1100) {   // matches the globe's glide
     const span = Math.max(this.proj.width, this.proj.height);
     const dir = this.camera.position.clone().sub(this.controls.target);
     const dist = Math.min(dir.length(), span * 0.6);

@@ -422,6 +422,9 @@ export class GlobeView {
     this.mapStyle = 'sat';
 
     this.marker = new SelectionMarker({ color: 0xffffff });
+    // Same device-pixel scaling as the Japan marker, or the two views show
+    // the same marker at different sizes on a HiDPI screen.
+    this.marker.setPixelRatio(renderer.getPixelRatio());
     this.scene.add(this.marker.points);
 
     this.layer = null;

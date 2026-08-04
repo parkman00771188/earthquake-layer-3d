@@ -177,15 +177,21 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
 .head-actions button.m-only { display: none; }
 .head-actions svg { width: 18px; height: 18px; }
 
+/* A map control, not a header line: pinned to the top of the map area so it
+   reads as an action on what you are looking at. */
 #m-update {
+  position: fixed; z-index: 22;
+  top: 16px; right: calc(var(--panel-w) + 18px);
   display: inline-flex; align-items: center; gap: 6px;
-  margin-top: 12px; padding: 6px 11px;
+  padding: 7px 12px;
   background: var(--panel); border: 1px solid var(--line);
   border-radius: 999px; backdrop-filter: blur(12px);
   font: 500 10.5px/1 var(--sans); color: var(--ink-dim);
   pointer-events: auto; transition: border-color .15s, color .15s;
 }
-#m-update:hover { border-color: var(--line-hi); color: var(--ink); }
+#m-update:hover { border-color: rgba(53, 214, 245, .5); color: var(--ink); }
+/* the collapsed panel frees the right edge, minus room for its grab handle */
+body.panel-collapsed #m-update { right: 62px; }
 #m-update svg { width: 13px; height: 13px; }
 #m-update i {
   width: 6px; height: 6px; border-radius: 50%;
@@ -210,7 +216,7 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
 
 /* ── rolling event list (left) ───────────────────────────── */
 #feed {
-  position: fixed; left: 18px; top: 200px; z-index: 22;
+  position: fixed; left: 18px; top: 158px; z-index: 22;
   width: 268px;
   display: flex; flex-direction: column;
   bottom: calc(var(--tl-h) + 178px);
@@ -608,16 +614,6 @@ input[type=checkbox]:checked::after {
   filter: invert(.72); cursor: pointer; opacity: .7;
 }
 
-/* completeness caveat */
-.caveat {
-  margin: 11px 0 0; padding: 9px 10px;
-  border-radius: 6px;
-  background: rgba(192,132,252,.09);
-  border: 1px solid rgba(192,132,252,.24);
-  font-size: 10px; line-height: 1.6; color: var(--ink-dim);
-}
-.caveat b { color: #dcb6ff; font-weight: 600; }
-.caveat code { font-size: 9.5px; }
 
 /* settings persistence footer */
 .saved-row {
@@ -932,10 +928,8 @@ input[type=checkbox]:checked::after {
   .head-actions svg { width: 21px; height: 21px; }
   #globe-status { font-size: 10px; max-width: 70vw; }
 
-  /* update pill: floats over the map instead of flowing in the header */
-  #m-update {
-    position: fixed; z-index: 22; left: 12px; top: 78px; margin-top: 0;
-  }
+  /* update pill: top-left of the map, clear of the compact header */
+  #m-update { left: 12px; right: auto; top: 78px; padding: 6px 10px 6px 11px; }
 
   /* floating layer / filter buttons */
   #mfabs {

@@ -256,6 +256,7 @@ class App {
     // Phones start with the panel tucked away; a remembered choice wins.
     if (this.saved.panelCollapsed ?? (window.innerWidth < 700)) {
       $('panel').classList.add('collapsed');
+      document.body.classList.add('panel-collapsed');
     }
     // Chips are shortcuts, not state: mark the matching one without firing it.
     // (The depth chips are matched at the end of bindUI, once the dual-range
@@ -375,7 +376,7 @@ class App {
     const globeMode = v === 'globe';
     document.body.classList.toggle('globe-mode', globeMode);
     // The headline names whichever catalogue is on screen.
-    $('app-title').textContent = t(globeMode ? '지구 전체 지진' : '일본 주변 지진');
+    $('app-title').textContent = t(globeMode ? '전세계 지진' : '일본 주변 지진');
     document.title = `${$('app-title').textContent} 4D`;
     this.controls.enabled = !globeMode;
 
@@ -433,8 +434,8 @@ class App {
    * swapped the static markup by the time this runs.
    */
   refreshTexts() {
-    document.title = `${t(this.view === 'globe' ? '지구 전체 지진' : '일본 주변 지진')} 4D`;
-    $('app-title').textContent = t(this.view === 'globe' ? '지구 전체 지진' : '일본 주변 지진');
+    document.title = `${t(this.view === 'globe' ? '전세계 지진' : '일본 주변 지진')} 4D`;
+    $('app-title').textContent = t(this.view === 'globe' ? '전세계 지진' : '일본 주변 지진');
     // Bounce the controls that own dynamic labels through their handlers.
     for (const id of ['in-window', 'in-glow']) {
       $(id).dispatchEvent(new Event('input', { bubbles: true }));
@@ -1113,7 +1114,8 @@ class App {
 
     /* panel + card */
     $('panel-toggle').addEventListener('click', () => {
-      $('panel').classList.toggle('collapsed');
+      const collapsed = $('panel').classList.toggle('collapsed');
+      document.body.classList.toggle('panel-collapsed', collapsed);
       // Re-centre once the slide-out transition has settled.
       setTimeout(() => this.recenter(), 340);
     });
@@ -1188,7 +1190,6 @@ class App {
       : `M${m.minmagnitude.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · USGS ANSS ComCat`;
 
-    // Source list + the completeness caveat the handoff creates.
     const rows = spans.map((s) => {
       const name = s.source === 'isc' ? 'ISC (JMA 포함)' : 'USGS ComCat';
       return `<div class="kv"><span>${name}</span><b>${nf.format(s.count)}건 · `
@@ -1196,16 +1197,6 @@ class App {
         + `<div class="kv"><span></span><b>${s.first.slice(0, 10)} → ${s.last.slice(0, 10)}</b></div>`;
     }).join('');
     $('meta-sources').innerHTML = rows;
-
-    if (isc && usgs) {
-      $('meta-caveat').hidden = false;
-      $('meta-caveat').innerHTML =
-        `<b>${m.handoff}</b> 이후로는 소스가 USGS로 바뀌어 하한이 `
-        + `M${isc.mag_min.toFixed(1)} → M${usgs.mag_min.toFixed(1)} 로 올라갑니다. `
-        + '시간바의 보라색 점선이 그 경계이고, 그 뒤로 막대가 낮아지는 것은 지진이 줄어서가 '
-        + '아니라 <b>작은 지진이 수록되지 않기 때문</b>입니다. ISC가 JMA 데이터를 더 '
-        + '공개하면 <code>update.bat --detect-handoff</code> 로 경계를 앞당길 수 있습니다.';
-    }
 
     if (m.handoff) {
       const days = (Date.parse(m.handoff + 'T00:00:00Z') - this.data.epochMs) / DAY_MS;

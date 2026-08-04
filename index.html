@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#05070d">
-<title>Earthquake 4D · 일본 & 지구 전체</title>
+<title>Earthquake 4D · 일본 &amp; 전세계</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305070d'/%3E%3Ccircle cx='11' cy='11' r='4' fill='%23ff2b4d'/%3E%3Ccircle cx='20' cy='17' r='3' fill='%23ffe14d'/%3E%3Ccircle cx='13' cy='23' r='2.5' fill='%2338bdf8'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/style.css">
 <script type="importmap">
@@ -49,7 +49,7 @@
   </dl>
   <div class="seg" id="seg-view" role="radiogroup" aria-label="보기 범위" data-i18n-aria="보기 범위">
     <button data-v="japan" data-i18n="일본">일본</button>
-    <button data-v="globe" class="on" data-i18n="지구 전체">지구 전체</button>
+    <button data-v="globe" class="on" data-i18n="전세계">전세계</button>
   </div>
   <button id="m-update" title="데이터 갱신" data-i18n-title="데이터 갱신">
   <span id="m-update-txt" data-i18n="업데이트">업데이트</span>
@@ -77,7 +77,7 @@
       <span class="dr-label" data-i18n="보기 범위">보기 범위</span>
       <div class="seg" id="dr-view" role="radiogroup">
         <button data-v="japan" data-i18n="일본">일본</button>
-        <button data-v="globe" class="on" data-i18n="지구 전체">지구 전체</button>
+        <button data-v="globe" class="on" data-i18n="전세계">전세계</button>
       </div>
       <div class="dr-stats">
         <div><span data-i18n="표시 중">표시 중</span><b id="dr-visible">–</b></div>
@@ -383,7 +383,6 @@
       <div id="meta-sources"></div>
       <div class="kv"><span data-i18n="수록 기간">수록 기간</span><b id="meta-span">–</b></div>
       <div class="kv"><span data-i18n="갱신 시각">갱신 시각</span><b id="meta-built">–</b></div>
-      <p class="caveat" id="meta-caveat" hidden></p>
       <p class="hint" data-i18n="최신 지진을 반영하려면 update.bat 을 실행하세요.">최신 지진을 반영하려면 update.bat 을 실행하세요.</p>
       <div class="field">
         <span data-i18n="언어">언어</span>

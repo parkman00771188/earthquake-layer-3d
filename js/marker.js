@@ -33,16 +33,18 @@ void main() {
   vec3 acc = vec3(0.0);
   float sum = 0.0;
 
-  for (int k = 0; k < 3; k++) {
-    float ph = fract(uPulse + float(k) / 3.0);
-    float rad = mix(0.05, 1.0, 1.0 - pow(1.0 - ph, 1.7));
+  for (int k = 0; k < 5; k++) {
+    float ph = fract(uPulse + float(k) * 0.2);
+    // Linear radius: the ring travels at a steady speed instead of
+    // crawling the last stretch; it just fades out at the rim.
+    float rad = mix(0.05, 1.0, ph);
 
     float ring = smoothstep(0.030, 0.005, abs(r - rad));
     float born = smoothstep(0.0, 0.10, ph);          // eases out of the centre
-    float gone = 1.0 - smoothstep(0.78, 1.0, ph);    // dissolves at the rim
+    float gone = 1.0 - smoothstep(0.74, 1.0, ph);    // dissolves at the rim
     float alpha = ring * born * gone;
 
-    vec3 col = mix(uColor, uHot, smoothstep(0.62, 0.80, rad));
+    vec3 col = mix(uColor, uHot, smoothstep(0.58, 0.78, rad));
     acc += col * alpha;
     sum += alpha;
   }
@@ -112,7 +114,7 @@ export class SelectionMarker {
   /** Advance the pulse; returns true while it still needs redrawing. */
   tick(dt) {
     if (!this.points.visible) return false;
-    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.25) % 1;
+    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.16) % 1;
     return true;
   }
 }

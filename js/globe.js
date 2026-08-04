@@ -579,6 +579,14 @@ export class GlobeView {
     const ox = origin.x, oy = origin.y, oz = origin.z;
     const dx = direction.x, dy = direction.y, dz = direction.z;
 
+    // Points behind the opaque core are hidden, and picking them teleported
+    // the view to the far side of the planet. dot(P, C) = bodyR^2 is the
+    // silhouette plane for a sphere of radius bodyR seen from C, so anything
+    // below it is on the far side.
+    const cam = this.camera.position;
+    const bodyR = this.body.scale.x;
+    const horizon = bodyR * bodyR;
+
     for (let i = lo; i < hi; i++) {
       const m = mag[i];
       if (m < mLo || m > mHi) continue;
@@ -587,6 +595,11 @@ export class GlobeView {
       if (!layer.bandPass(m)) continue;
 
       const rr = R - d * KM2U * exag;
+      const px = dirs[i * 3] * rr;
+      const py = dirs[i * 3 + 1] * rr;
+      const pz = dirs[i * 3 + 2] * rr;
+      if (px * cam.x + py * cam.y + pz * cam.z < horizon) continue;
+
       const wx = dirs[i * 3] * rr - ox;
       const wy = dirs[i * 3 + 1] * rr - oy;
       const wz = dirs[i * 3 + 2] * rr - oz;

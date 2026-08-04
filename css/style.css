@@ -19,8 +19,12 @@
   --panel-w:   306px;
   --tl-h:      104px;
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-  --sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI",
-          "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  /* Latin first, then the CJK faces each platform actually ships, so Japanese
+     and Korean both land on a real UI face instead of a fallback. */
+  --sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo,
+          "Noto Sans JP", "Apple SD Gothic Neo", "Malgun Gothic",
+          "Noto Sans KR", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -153,7 +157,8 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
   margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.01em;
   text-shadow: 0 2px 14px #05070d;
 }
-#head h1 span {
+/* the "4D" badge only -- the title beside it keeps the heading's own type */
+#head h1 .v4d {
   color: var(--accent); font-family: var(--mono); font-size: 15px;
   vertical-align: 2px; margin-left: 2px;
 }
@@ -875,7 +880,7 @@ input[type=checkbox]:checked::after {
   #head { top: 10px; left: 12px; right: 12px; }
   .head-row { display: flex; align-items: center; justify-content: space-between; }
   #head h1 { font-size: 17px; }
-  #head h1 span { font-size: 13px; }
+  #head h1 .v4d { font-size: 13px; }
   #head .sub { display: none; }
   #head #m-span {
     display: block; margin-top: 3px;

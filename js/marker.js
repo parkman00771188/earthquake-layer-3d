@@ -41,10 +41,11 @@ void main() {
 
     float ring = smoothstep(0.030, 0.005, abs(r - rad));
     float born = smoothstep(0.0, 0.10, ph);          // eases out of the centre
-    float gone = 1.0 - smoothstep(0.74, 1.0, ph);    // dissolves at the rim
+    // Fades across the outer half, so a ring reddens and thins together.
+    float gone = 1.0 - smoothstep(0.52, 1.0, ph);
     float alpha = ring * born * gone;
 
-    vec3 col = mix(uColor, uHot, smoothstep(0.58, 0.78, rad));
+    vec3 col = mix(uColor, uHot, smoothstep(0.38, 0.70, rad));
     acc += col * alpha;
     sum += alpha;
   }
@@ -114,7 +115,7 @@ export class SelectionMarker {
   /** Advance the pulse; returns true while it still needs redrawing. */
   tick(dt) {
     if (!this.points.visible) return false;
-    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.16) % 1;
+    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.11) % 1;
     return true;
   }
 }

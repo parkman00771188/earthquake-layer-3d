@@ -22,9 +22,12 @@ import * as store from './store.js';
 import {
   DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient,
 } from './palette.js';
+import {
+  LANGS, applyI18n, detectLang, fmtDate, fmtDays, getLang, numFmt, setLang, t,
+} from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
-const nf = new Intl.NumberFormat('ko-KR');
+let nf = new Intl.NumberFormat('ko-KR');
 
 /** Rolling-window lengths, as [days, label]. The slider indexes this list so
  *  every stop is a round number instead of an artefact of the step size. */
@@ -64,6 +67,12 @@ async function boot() {
   const app = new App(data);
   window.__app = app;                     // console/debug access
   app.start();
+}
+
+/** Where you are decides the language, before anything is rendered. */
+function initLang() {
+  setLang(detectLang(), { persist: false });
+  nf = numFmt();
 }
 
 /**
@@ -359,6 +368,9 @@ class App {
     this.view = v;
     const globeMode = v === 'globe';
     document.body.classList.toggle('globe-mode', globeMode);
+    // The headline names whichever catalogue is on screen.
+    $('app-title').textContent = t(globeMode ? '지구 전체 지진' : '일본 주변 지진');
+    document.title = `${$('app-title').textContent} 4D`;
     this.controls.enabled = !globeMode;
 
     if (globeMode) {
@@ -386,8 +398,80 @@ class App {
 
   /* ── mobile shell: drawer, bottom sheets, period popup ──── */
 
+  /* ── language ───────────────────────────────────────────── */
+
+  bindLang() {
+    const build = (root) => {
+      root.innerHTML = LANGS.map(([code, label]) =>
+        `<button data-l="${code}"${code === getLang() ? ' class="on"' : ''}>${label}</button>`)
+        .join('');
+    };
+    const pick = (ev) => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      setLang(btn.dataset.l);
+      nf = numFmt();
+      for (const id of ['seg-lang', 'mi-lang']) {
+        markChip($(id), (b) => b.dataset.l === getLang());
+      }
+      this.refreshTexts();
+    };
+    for (const id of ['seg-lang', 'mi-lang']) {
+      build($(id));
+      $(id).addEventListener('click', pick);
+    }
+  }
+
+  /**
+   * Re-render everything whose text is built in JS. applyI18n() has already
+   * swapped the static markup by the time this runs.
+   */
+  refreshTexts() {
+    document.title = `${t(this.view === 'globe' ? '지구 전체 지진' : '일본 주변 지진')} 4D`;
+    $('app-title').textContent = t(this.view === 'globe' ? '지구 전체 지진' : '일본 주변 지진');
+    // Bounce the controls that own dynamic labels through their handlers.
+    for (const id of ['in-window', 'in-glow']) {
+      $(id).dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    $('row-fade').querySelector('span').textContent =
+      t(this.state.mode === 'window' ? '꼬리 진하기' : '과거 지진 진하기');
+    $('mode-hint').textContent = t(this.state.mode === 'window'
+      ? '현재 시점에서 뒤로 정해진 기간만 표시합니다. 지진의 이동과 여진 전개를 보기에 좋습니다.'
+      : '시작부터 현재 시점까지 모든 지진이 남습니다. 점이 쌓이며 밀집 구역이 드러납니다.');
+    $('land-hint').textContent =
+      t('면 채우기는 Natural Earth 육지 마스크, 위성사진은 NASA Blue Marble 영상입니다.');
+    this.renderLegend();
+    this.fillMeta();
+    this.syncTime();
+    this.updateStats();
+    this.feed?.render(true);
+    this.fillInfo();
+  }
+
+  /** Gesture list + coverage line inside the ⓘ popup. */
+  fillInfo() {
+    const touch = window.matchMedia('(pointer: coarse)').matches;
+    const items = touch
+      ? ['한 손가락 드래그: 회전', '두 손가락 벌리기/오므리기: 확대·축소',
+         '두 손가락 드래그: 화면 이동', '점 탭: 지진 상세 정보']
+      : ['마우스 드래그: 회전 · 휠: 확대 · 우클릭 드래그: 이동', '점 탭: 지진 상세 정보'];
+    $('mi-gestures').innerHTML = items.map((k) => `<li>${t(k)}</li>`).join('');
+
+    const m = this.meta;
+    $('mi-meta').textContent =
+      `${t('수록 기간')}: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}\n`
+      + `${t('갱신 시각')}: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
+  }
+
   bindMobile() {
     $('m-list-close').addEventListener('click', () => this.setMobileList(false));
+
+    /* info popup */
+    const info = $('minfo');
+    const openInfo = (on) => { info.hidden = !on; if (on) this.fillInfo(); };
+    $('m-info').addEventListener('click', () => openInfo(true));
+    $('mi-close').addEventListener('click', () => openInfo(false));
+    info.addEventListener('click', (ev) => { if (ev.target === info) openInfo(false); });
 
     /* floating layer / filter buttons -> bottom sheets */
     $('fab-layer').addEventListener('click', () => this.toggleSheet('layer'));
@@ -406,7 +490,6 @@ class App {
     const drawer = $('mdrawer');
     const openDrawer = (on) => { drawer.hidden = !on; };
     $('m-menu').addEventListener('click', () => openDrawer(true));
-    $('m-info').addEventListener('click', () => openDrawer(true));
     $('dr-close').addEventListener('click', () => openDrawer(false));
     drawer.addEventListener('click', (ev) => { if (ev.target === drawer) openDrawer(false); });
     seg($('dr-view'), (v) => { this.setView(v); markChip($('seg-view'), (b) => b.dataset.v === v); },
@@ -498,15 +581,15 @@ class App {
     btn.classList.add('busy');
     const scope = this.view === 'globe' ? 'global' : 'japan';
     try {
-      txt.textContent = '갱신 중…';
+      txt.textContent = t('갱신 중…');
       const r = await fetch(`api/update?scope=${scope}`, { method: 'POST' });
       if (!r.ok) throw new Error(String(r.status));
       const out = await r.json();
-      txt.textContent = out.ok ? '갱신 완료 · 새로고침' : '갱신 실패';
+      txt.textContent = t(out.ok ? '갱신 완료 · 새로고침' : '갱신 실패');
       if (out.ok) setTimeout(() => location.reload(), 1200);
     } catch {
       // Static host: the freshest thing available is whatever was published.
-      txt.textContent = '최신 데이터 확인 중…';
+      txt.textContent = t('최신 데이터 확인 중…');
       location.reload();
     } finally {
       btn.classList.remove('busy');
@@ -759,6 +842,7 @@ class App {
     /* view scope: the whole-Earth globe opens; Japan is one click away */
     seg($('seg-view'), (v) => { this.setView(v); }, 'globe');
 
+    this.bindLang();
     this.bindMobile();
 
     $('m-filter-reset').addEventListener('click', () => {
@@ -789,10 +873,10 @@ class App {
       s.mode = v;
       const win = v === 'window';
       $('row-window').classList.toggle('hide', !win);
-      $('mode-hint').textContent = win
+      $('mode-hint').textContent = t(win
         ? '현재 시점에서 뒤로 정해진 기간만 표시합니다. 지진의 이동과 여진 전개를 보기에 좋습니다.'
-        : '시작부터 현재 시점까지 모든 지진이 남습니다. 점이 쌓이며 밀집 구역이 드러납니다.';
-      $('row-fade').querySelector('span').textContent = win ? '꼬리 진하기' : '과거 지진 진하기';
+        : '시작부터 현재 시점까지 모든 지진이 남습니다. 점이 쌓이며 밀집 구역이 드러납니다.');
+      $('row-fade').querySelector('span').textContent = t(win ? '꼬리 진하기' : '과거 지진 진하기');
       this.syncTime();
     }, s.mode);
 
@@ -800,7 +884,7 @@ class App {
     slider('in-window', (i) => {
       const [days, label] = WINDOW_PRESETS[clamp(i, 0, WINDOW_PRESETS.length - 1)];
       s.windowDays = days;
-      $('out-window').textContent = label;
+      $('out-window').textContent = t(label);
       this.syncTime();
     });
     slider('in-fade', (v) => {
@@ -810,7 +894,7 @@ class App {
     });
     slider('in-glow', (v) => {
       this.quakes.uniforms.uGlowDays.value = v;
-      $('out-glow').textContent = v === 0 ? '없음' : `${nf.format(v)}일`;
+      $('out-glow').textContent = v === 0 ? t('없음(강조 안 함)') : fmtDays(v);
       this.syncTime();
     });
     slider('in-exag', (v) => {
@@ -993,7 +1077,7 @@ class App {
       this.dirty = true;
     });
     $('land-hint').textContent =
-      '면 채우기는 Natural Earth 육지 마스크, 위성사진은 NASA Blue Marble 영상입니다.';
+      t('면 채우기는 Natural Earth 육지 마스크, 위성사진은 NASA Blue Marble 영상입니다.');
     check('ck-box', (on) => {
       this.ref.setCageVisible(on);
       this.labels.setVisible(on);
@@ -1167,19 +1251,19 @@ class App {
     };
 
     if (mode === 0) {
-      $('legend-title').textContent = '깊이 (km)';
+      $('legend-title').textContent = t('깊이 (km)');
       put(DEPTH_STOPS, [0, 70, 150, 300, 700], (v) => v);
     } else if (mode === 1) {
-      $('legend-title').textContent = '규모 (M)';
+      $('legend-title').textContent = t('규모 (M)');
       put(MAG_STOPS, [3, 5, 6, 7, 9], (v) => v);
     } else if (mode === 2) {
-      $('legend-title').textContent = '발생 연도';
+      $('legend-title').textContent = t('경과 시간');
       const y0 = +this.meta.time_start.slice(0, 4);
       const y1 = +this.meta.time_end.slice(0, 4);
       put(TIME_STOPS, [0, 0.25, 0.5, 0.75, 1],
         (f) => Math.round(y0 + (y1 - y0) * f));
     } else {
-      $('legend-title').textContent = '밀도 (단색)';
+      $('legend-title').textContent = t('밀도 (균일 색)');
       ramp.style.display = 'none';
       ticksEl.innerHTML = '<span style="left:0">겹칠수록 밝아집니다 — 발광 합성 권장</span>';
     }
@@ -1195,11 +1279,11 @@ class App {
     this.timeline.set(s.now, win, [s.rangeStart, s.rangeEnd]);
 
     const at = this.daysToDate(s.now);
-    $('tl-date').textContent = fmtDateKo(at);
+    $('tl-date').textContent = fmtDate(at);
     const fromDays = win == null ? s.rangeStart : Math.max(s.rangeStart, s.now - win);
     $('tl-range').textContent =
       `${fmtISO(this.daysToDate(fromDays))} → ${fmtISO(at)} UTC · `
-      + `${win == null ? '누적' : '이동 구간'}`;
+      + `${t(win == null ? '누적' : '이동 구간')}`;
     // The header carries the selected period on phones, where the sub-line
     // about sources has no room and the range is what you keep adjusting.
     $('m-span').textContent = `${fmtISO(this.daysToDate(s.rangeStart))} ~ `
@@ -1454,4 +1538,5 @@ const fmtDateKo = (d) =>
   `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
 
 // Started last so every helper above is initialised before the app builds.
+initLang();
 boot();

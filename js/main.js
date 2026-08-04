@@ -354,6 +354,14 @@ class App {
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    // Publish the timeline card's real height; the floating map buttons ride
+    // just above it, and it changes with the language and the viewport.
+    new ResizeObserver(([e]) => {
+      // Border box, not contentRect: the card's padding is part of what the
+      // buttons have to clear.
+      const h = e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height;
+      document.documentElement.style.setProperty('--tl-real', `${Math.round(h)}px`);
+    }).observe($('timeline'));
     this.bindPointer();
   }
 

@@ -26,31 +26,36 @@ void main() {
   float r = length(gl_PointCoord - 0.5) * 2.0;
   if (r > 1.0) discard;
 
-  const float PI = 3.14159265;
+  // Ripples leave the centre one after another. Each is white while it is
+  // small and turns red as it passes the threshold radius, then keeps growing
+  // out to the rim and fades. Colour is accumulated per ring so overlapping
+  // ripples blend instead of one winning outright.
+  vec3 acc = vec3(0.0);
+  float sum = 0.0;
 
-  // One eased travel curve drives everything, so the rings and the red wave
-  // read as a single system rather than three independent animations.
-  float grow = 1.0 - pow(1.0 - uPulse, 1.6);
-  float breath = sin(PI * uPulse);
+  for (int k = 0; k < 3; k++) {
+    float ph = fract(uPulse + float(k) / 3.0);
+    float rad = mix(0.05, 1.0, 1.0 - pow(1.0 - ph, 1.7));
 
-  // Two steady rings hold the target so it is legible at every instant; a
-  // third rides outward with the wave and fades to nothing at both ends of the
-  // cycle, which hides the loop seam.
-  float white = smoothstep(0.027, 0.005, abs(r - 0.15)) * 0.85;
-  white = max(white, smoothstep(0.026, 0.005, abs(r - 0.27)) * 0.6);
-  float rad3 = 0.40 + grow * 0.32;
-  white = max(white, smoothstep(0.028, 0.005, abs(r - rad3)) * breath * 0.85);
+    float ring = smoothstep(0.030, 0.005, abs(r - rad));
+    float born = smoothstep(0.0, 0.10, ph);          // eases out of the centre
+    float gone = 1.0 - smoothstep(0.78, 1.0, ph);    // dissolves at the rim
+    float alpha = ring * born * gone;
 
-  // The red wave runs the same curve but the whole way out, so it leads the
-  // group: faint at the centre, full mid-flight, gone at the rim.
-  float rad = mix(0.18, 1.0, grow);
-  float echo = smoothstep(mix(0.038, 0.020, grow), 0.0, abs(r - rad))
-             * pow(breath, 0.7);
+    vec3 col = mix(uColor, uHot, smoothstep(0.62, 0.80, rad));
+    acc += col * alpha;
+    sum += alpha;
+  }
 
-  float a = clamp(white + echo, 0.0, 1.0);
+  // A faint fixed ring keeps the exact spot marked between ripples.
+  float core = smoothstep(0.022, 0.004, abs(r - 0.085)) * 0.7;
+  acc += uColor * core;
+  sum += core;
+
+  float a = clamp(sum, 0.0, 1.0);
   if (a <= 0.004) discard;
 
-  gl_FragColor = vec4(mix(uHot, uColor, clamp(white / max(a, 1e-4), 0.0, 1.0)), a);
+  gl_FragColor = vec4(acc / max(sum, 1e-4), a);
 }
 `;
 

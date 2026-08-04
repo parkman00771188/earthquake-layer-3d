@@ -14,9 +14,9 @@
 const KEY = 'jq4d.lang';
 
 export const LANGS = [
-  ['ko', '한국어'],
-  ['ja', '日本語'],
   ['en', 'English'],
+  ['ja', '日本語'],
+  ['ko', '한국어'],
 ];
 
 /* ko -> { en, ja } */
@@ -162,6 +162,49 @@ const DICT = {
     ja: '設定はこのブラウザに自動保存されます',
   },
   '초기화': { en: 'Reset', ja: '初期化' },
+  '데이터 파일이 서로 맞지 않습니다': {
+    en: 'The data files disagree with each other', ja: 'データファイルが一致しません' },
+  '저장된 설정을 지웠습니다. 새로고침하면 기본값으로 시작합니다.': {
+    en: 'Saved settings cleared. Reload to start from the defaults.',
+    ja: '保存された設定を消しました。再読み込みで初期値から始まります。' },
+  '일시정지': { en: 'Pause', ja: '一時停止' },
+  '데이터': { en: 'Data', ja: 'データ' },
+  '수록': { en: 'Coverage', ja: '収録' },
+  '갱신': { en: 'Updated', ja: '更新' },
+  'ISC (JMA 포함)': { en: 'ISC (incl. JMA)', ja: 'ISC (JMA 含む)' },
+  '겹칠수록 밝아집니다 — 발광 합성 권장': {
+    en: 'Brighter where events overlap — additive glow recommended',
+    ja: '重なるほど明るくなります — 発光合成を推奨' },
+  '(이름 없음)': { en: '(unnamed)', ja: '(名称なし)' },
+  'ISC 상세 페이지 ↗': { en: 'ISC event page ↗', ja: 'ISC 詳細ページ ↗' },
+  'USGS 상세 페이지 ↗': { en: 'USGS event page ↗', ja: 'USGS 詳細ページ ↗' },
+  '메타데이터 확인 중…': { en: 'Checking metadata…', ja: 'メタデータ確認中…' },
+  '지명 · 기준 지형 불러오는 중…': {
+    en: 'Loading place names and basemap…', ja: '地名・基準地形を読み込み中…' },
+  '장면 구성 중…': { en: 'Building the scene…', ja: 'シーンを構成中…' },
+  '전세계 데이터 불러오는 중…': {
+    en: 'Loading worldwide data…', ja: '世界のデータを読み込み中…' },
+  '전세계 지진 병합 중…': { en: 'Merging worldwide events…', ja: '世界の地震を統合中…' },
+  '전세계 데이터를 불러오지 못했습니다. update_global.bat 로 생성하세요.': {
+    en: 'Could not load the worldwide data. Run update_global.bat to build it.',
+    ja: '世界のデータを読み込めません。update_global.bat で生成してください。' },
+  '갱신 기록이 없습니다 (아직 update를 실행하지 않음).': {
+    en: 'No update history yet (update has not been run).',
+    ja: '更新履歴がありません (update 未実行)。' },
+  '변경된 지진이 없습니다.': { en: 'No events changed.', ja: '変更された地震はありません。' },
+  '신규': { en: 'New', ja: '新規' },
+  '대체': { en: 'Replaced', ja: '置換' },
+  '목록이 길어 일부만 표시했습니다.': {
+    en: 'The list was long, so only part of it is shown.',
+    ja: '一覧が長いため一部のみ表示しています。' },
+  '지진 데이터 불러오는 중…': {
+    en: 'Loading earthquakes…', ja: '地震データを読み込み中…' },
+  '수정': { en: 'Revised', ja: '修正' },
+  '위도': { en: 'Latitude', ja: '緯度' },
+  '경도': { en: 'Longitude', ja: '経度' },
+  '발생시각': { en: 'Origin time', ja: '発生時刻' },
+  '규모종류': { en: 'Magnitude type', ja: '規模の種類' },
+  '지명': { en: 'Place', ja: '地名' },
   '언어': { en: 'Language', ja: '言語' },
   '글자 크기': { en: 'Text size', ja: '文字サイズ' },
   '작게': { en: 'Small', ja: '小' },
@@ -310,6 +353,12 @@ export function fmtDays(n) {
   if (lang === 'ko') return `${n}일`;
   if (lang === 'ja') return `${n}日`;
   return `${n} day${n === 1 ? '' : 's'}`;
+}
+
+/** "1,234건" / "1,234件" / "1,234". */
+export function count(n) {
+  const s = numFmt().format(n);
+  return lang === 'ko' ? `${s}건` : lang === 'ja' ? `${s}件` : s;
 }
 
 const NF = { ko: 'ko-KR', ja: 'ja-JP', en: 'en-US' };

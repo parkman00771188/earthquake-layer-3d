@@ -11,6 +11,8 @@
  * immediately instead of arriving after a lazy second fetch.
  */
 
+import { count, t } from './i18n.js';
+
 const MAGIC = 'JQ4D';
 const SUPPORTED = new Set([2]);
 const DAY = 86400;
@@ -88,19 +90,18 @@ function decodeBinary(buffer, meta) {
 }
 
 export async function loadData(onStage) {
-  onStage?.('메타데이터 확인 중…', 0.03);
+  onStage?.(t('메타데이터 확인 중…'), 0.03);
   const meta = await getJSON('data/meta.json');
 
-  const nice = meta.count.toLocaleString('ko-KR');
   const mb = (meta.binary?.bytes ?? 0) / 1e6;
-  const label = `지진 ${nice}건 (${mb.toFixed(0)} MB) 불러오는 중…`;
+  const label = `${t('지진 데이터 불러오는 중…')} ${count(meta.count)} · ${mb.toFixed(0)} MB`;
 
   onStage?.(label, 0.06);
   const buffer = await getBuffer('data/quakes.bin',
     (p) => onStage?.(label, 0.06 + p * 0.66));
   const events = decodeBinary(buffer, meta);
 
-  onStage?.('지명 · 기준 지형 불러오는 중…', 0.76);
+  onStage?.(t('지명 · 기준 지형 불러오는 중…'), 0.76);
   const [labels, basemap] = await Promise.all([
     getJSON('data/labels.json').catch((err) => {
       console.warn('labels.json unavailable:', err);
@@ -112,7 +113,7 @@ export async function loadData(onStage) {
     }),
   ]);
 
-  onStage?.('장면 구성 중…', 0.9);
+  onStage?.(t('장면 구성 중…'), 0.9);
 
   const epochMs = Date.parse(meta.epoch);
   const places = labels.places ?? [];

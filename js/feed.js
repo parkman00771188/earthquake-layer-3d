@@ -9,6 +9,7 @@
  */
 
 import { DEPTH_STOPS, MAG_STOPS, rampColor } from './palette.js';
+import { count, t } from './i18n.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -61,14 +62,14 @@ export class EventFeed {
    * Returns the indices plus where to resume, so a long list can be pulled in
    * chunks instead of materialising a million rows.
    */
-  collectFrom(start, count) {
+  collectFrom(start, max) {
     const { mag, depth } = this.data.events;
     const [lo, hi] = this.layer.range;
     const { mLo, mHi, dLo, dHi } = this.layer.bounds();
 
     const indices = [];
     let i = Math.min(start, hi - 1);
-    for (; i >= lo && indices.length < count; i--) {
+    for (; i >= lo && indices.length < max; i--) {
       const m = mag[i];
       if (m < mLo || m > mHi) continue;
       const d = depth[i];
@@ -90,8 +91,8 @@ export class EventFeed {
     this.indices = next;
 
     this.countEl.textContent = next.length
-      ? `${next.length}${next.length >= this.limit ? '+' : ''}건`
-      : '0건';
+      ? `${count(next.length)}${next.length >= this.limit ? '+' : ''}`
+      : count(0);
 
     if (!next.length) {
       this.list.replaceChildren();
@@ -134,7 +135,7 @@ export class ChangeFeed {
 
     toggle.addEventListener('click', () => {
       const open = root.classList.toggle('open');
-      toggle.textContent = open ? '접기' : '내역 보기';
+      toggle.textContent = t(open ? '접기' : '내역 보기');
     });
     list.addEventListener('click', (ev) => {
       const li = ev.target.closest('li[data-i]');
@@ -145,7 +146,7 @@ export class ChangeFeed {
   setData(changes) {
     this.data = changes;
     if (!changes?.available) {
-      this.summary.textContent = '갱신 기록이 없습니다 (아직 update를 실행하지 않음).';
+      this.summary.textContent = t('갱신 기록이 없습니다 (아직 update를 실행하지 않음).');
       this.root.classList.add('quiet');
       return;
     }
@@ -155,33 +156,33 @@ export class ChangeFeed {
     // A bulk scan lists no individual additions -- a million rows is not news.
     if (changes.initial_import && !(changes.revised ?? []).length) {
       this.summary.textContent =
-        `${when} UTC · 전체 수집 ${fmt(c.added)}건 (개별 목록 없음)`;
+        `${when} UTC · ${count(c.added ?? 0)}`;
       this.root.classList.add('quiet');
       return;
     }
 
-    const parts = [`신규 ${fmt(c.added)}건`, `수정 ${fmt(c.revised)}건`];
-    if (c.removed) parts.push(`대체 ${fmt(c.removed)}건`);
-    if (c.metadata_only) parts.push(`메타데이터만 ${fmt(c.metadata_only)}건`);
+    const parts = [`${t('신규')} ${count(c.added ?? 0)}`, `${t('수정')} ${count(c.revised ?? 0)}`];
+    if (c.removed) parts.push(`${t('대체')} ${count(c.removed)}`);
+    
     this.summary.textContent = `${when} UTC · ${parts.join(' · ')}`;
 
     const rows = [];
     for (const e of changes.added ?? []) {
-      rows.push(this.row(e, 'new', '신규'));
+      rows.push(this.row(e, 'new', t('신규')));
     }
     for (const e of changes.revised ?? []) {
       const diff = Object.entries(e.fields ?? {})
-        .map(([k, [a, b]]) => `<span class="c-diff"><b>${FIELD_KO[k] ?? k}</b> `
+        .map(([k, [a, b]]) => `<span class="c-diff"><b>${fieldLabel(k)}</b> `
           + `${escapeHtml(String(a)) || '–'} → ${escapeHtml(String(b)) || '–'}</span>`)
         .join('');
-      rows.push(this.row(e, 'rev', '수정', diff));
+      rows.push(this.row(e, 'rev', t('수정'), diff));
     }
 
     this.list.innerHTML = rows.join('')
-      || '<li class="c-none">변경된 지진이 없습니다.</li>';
+      || `<li class="c-none">${t('변경된 지진이 없습니다.')}</li>`;
     if (changes.truncated) {
-      this.list.innerHTML += '<li class="c-none">목록이 길어 일부만 표시했습니다. '
-        + '전체는 <code>update.bat --changes</code>.</li>';
+      this.list.innerHTML +=
+        `<li class="c-none">${t('목록이 길어 일부만 표시했습니다.')}</li>`;
     }
     this.root.classList.remove('quiet');
   }
@@ -201,8 +202,8 @@ const FIELD_KO = {
   mag: '규모', depth: '깊이', latitude: '위도', longitude: '경도',
   time: '발생시각', magType: '규모종류', place: '지명',
 };
+const fieldLabel = (k) => t(FIELD_KO[k] ?? k);
 
-const fmt = (n) => (n ?? 0).toLocaleString('ko-KR');
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) =>

@@ -201,6 +201,7 @@ body.globe-mode .jp-only { display: none !important; }
 /* the collapsed panel frees the right edge, minus room for its grab handle */
 body.panel-collapsed #m-update { right: 46px; }
 #m-update svg { width: 13px; height: 13px; }
+#m-update-txt { font-variant-numeric: tabular-nums; }
 #m-update i {
   width: 6px; height: 6px; border-radius: 50%;
   background: #35d07f; box-shadow: 0 0 6px rgba(53, 208, 127, .8);
@@ -225,13 +226,16 @@ body.panel-collapsed #m-update { right: 46px; }
 /* ── rolling event list (left) ───────────────────────────── */
 #feed {
   position: fixed; left: 18px; z-index: 22;
-  /* --head-bottom is measured: the header grows when the stats wrap. */
-  top: calc(var(--head-bottom, 158px) + 14px);
+  /* --head-bottom is measured in real pixels; dividing by the zoom converts
+     it into this element's own scaled units. */
+  top: calc((var(--head-bottom, 158px) + 14px) / var(--ui-zoom, 1));
   width: 268px;
   display: flex; flex-direction: column;
   /* Content-sized, capped so it never runs into the timeline: an empty tail
      under a short list just looks broken. */
-  max-height: calc(100vh - var(--head-bottom, 158px) - var(--tl-h) - 48px);
+  /* Leaves room for the depth legend, which shares this column. */
+  max-height: calc((100vh - var(--head-bottom, 158px) - var(--tl-real, 110px)
+    - var(--legend-h, 0px) - 46px) / var(--ui-zoom, 1));
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); backdrop-filter: blur(14px);
   overflow: hidden;
@@ -400,7 +404,8 @@ body.panel-collapsed #m-update { right: 46px; }
 
 /* ── legend ────────────────────────────────────────────────── */
 #legend {
-  position: fixed; left: 18px; bottom: calc(var(--tl-h) + 20px); z-index: 20;
+  position: fixed; left: 18px; z-index: 20;
+  bottom: calc((var(--tl-real, 110px) + 20px) / var(--ui-zoom, 1));
   width: 190px; padding: 11px 12px 10px;
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); backdrop-filter: blur(14px);
@@ -1040,6 +1045,9 @@ input[type=checkbox]:checked::after {
   /* update pill: top-left of the map, clear of the compact header. The
      collapsed-panel offset is a desktop concern; here it would stretch the
      pill across the screen. */
+  /* Under ~400 px the label and the view switch fight for the same row. */
+  @media (max-width: 400px) { #m-update-lab { display: none; } }
+
   #m-update,
   body.panel-collapsed #m-update {
     left: auto; right: 12px; top: 70px; padding: 6px 10px 6px 11px;

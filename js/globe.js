@@ -19,6 +19,7 @@ import {
   glslRamp, hexToRgb,
 } from './palette.js';
 import { FILTER_EPS } from './quakeLayer.js';
+import { count, t } from './i18n.js';
 
 const R = 10;                        // globe radius, world units
 const KM2U = R / 6371;               // km of depth -> world units, before exag
@@ -437,7 +438,7 @@ export class GlobeView {
     this.loading = (async () => {
       const say = (t) => { if (statusEl) { statusEl.hidden = !t; statusEl.textContent = t; } };
       try {
-        say('전세계 데이터 불러오는 중…');
+        say(t('전세계 데이터 불러오는 중…'));
         this.meta = await (await fetch('data/global/meta.json')).json();
 
         if (this.meta.land?.path) {
@@ -463,12 +464,12 @@ export class GlobeView {
         const buffers = [];
         let got = 0;
         for (const band of this.meta.bands) {
-          say(`전세계 지진 데이터 ${got}/${this.meta.bands.length} · `
-            + `${this.meta.count.toLocaleString('ko-KR')}건 준비 중…`);
+          say(`${t('전세계 데이터 불러오는 중…')} ${got}/${this.meta.bands.length} · `
+            + count(this.meta.count));
           buffers.push(await (await fetch(`data/global/${band.path}`)).arrayBuffer());
           got++;
         }
-        say('전세계 지진 병합 중…');
+        say(t('전세계 지진 병합 중…'));
         this.layer = new GlobeLayer(mergeBands(buffers), shared, timeSpanDays);
         if (this.hh) this.layer.uniforms.uHalfHeight.value = this.hh;
         this.scene.add(this.layer.points);
@@ -476,7 +477,7 @@ export class GlobeView {
         onReady?.();
       } catch (err) {
         console.error('globe data failed to load:', err);
-        say('전세계 데이터를 불러오지 못했습니다. update_global.bat 로 생성하세요.');
+        say(t('전세계 데이터를 불러오지 못했습니다. update_global.bat 로 생성하세요.'));
       }
     })();
     return this.loading;

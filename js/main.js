@@ -23,7 +23,7 @@ import {
   DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient, rampColor,
 } from './palette.js';
 import {
-  LANGS, applyI18n, detectLang, fmtDate, fmtDays, getLang, numFmt, setLang, t,
+  LANGS, applyI18n, count, detectLang, fmtDate, fmtDays, getLang, numFmt, setLang, t,
 } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -92,19 +92,19 @@ function showFailure(err) {
   $('fail-msg').textContent = msg;
 
   if (err?.kind === 'stale-build') {
-    $('fail-title').textContent = '데이터 파일이 서로 맞지 않습니다';
+    $('fail-title').textContent = t('데이터 파일이 서로 맞지 않습니다');
     $('fail-hint').innerHTML =
       '빌드가 중간에 끊겼을 때 생깁니다. <code>update.bat --build-only</code> 를 실행해 '
       + '데이터를 다시 만든 뒤 <b>Ctrl+F5</b> 로 새로고침하세요. '
       + '(수집한 원본 <code>data/raw/catalog.csv</code> 는 그대로이므로 다시 받을 필요는 없습니다.)';
   } else if (isTransport) {
-    $('fail-title').textContent = '데이터를 불러올 수 없습니다';
+    $('fail-title').textContent = t('데이터를 불러올 수 없습니다');
     $('fail-hint').innerHTML =
       '이 사이트는 로컬 서버에서 열어야 합니다. <code>serve.bat</code> 을 실행한 뒤 '
       + '<code>http://localhost:8080</code> 으로 접속하세요. '
       + '(<code>file://</code> 로는 동작하지 않습니다.)';
   } else {
-    $('fail-title').textContent = '데이터를 불러올 수 없습니다';
+    $('fail-title').textContent = t('데이터를 불러올 수 없습니다');
     $('fail-hint').innerHTML =
       '<code>update.bat --build-only</code> 로 데이터를 다시 만들어 보세요. '
       + '문제가 계속되면 브라우저 개발자 콘솔(F12)의 오류 메시지를 확인하세요.';
@@ -353,16 +353,21 @@ class App {
     window.addEventListener('resize', () => this.resize());
     // Publish the timeline card's real height; the floating map buttons ride
     // just above it, and it changes with the language and the viewport.
-    new ResizeObserver(() => {
-      const b = $('head').getBoundingClientRect().bottom;
-      document.documentElement.style.setProperty('--head-bottom', `${Math.round(b)}px`);
-    }).observe($('head'));
-    new ResizeObserver(([e]) => {
-      // Border box, not contentRect: the card's padding is part of what the
-      // buttons have to clear.
-      const h = e.borderBoxSize?.[0]?.blockSize ?? e.target.getBoundingClientRect().height;
-      document.documentElement.style.setProperty('--tl-real', `${Math.round(h)}px`);
-    }).observe($('timeline'));
+    // Publish real-pixel heights of the chrome the left column has to share.
+    // borderBoxSize is in the element's own units, which the UI zoom scales --
+    // getBoundingClientRect is what the layout maths actually needs.
+    const publish = () => {
+      const px = (el) => (getComputedStyle(el).display === 'none'
+        ? 0 : Math.round(el.getBoundingClientRect().height));
+      const root = document.documentElement.style;
+      root.setProperty('--head-bottom', `${Math.round($('head').getBoundingClientRect().bottom)}px`);
+      root.setProperty('--tl-real', `${px($('timeline'))}px`);
+      root.setProperty('--legend-h', `${px($('legend'))}px`);
+    };
+    const ro = new ResizeObserver(publish);
+    ro.observe($('head'));
+    ro.observe($('timeline'));
+    ro.observe($('legend'));
     this.bindPointer();
   }
 
@@ -433,7 +438,7 @@ class App {
       // Zoom changes every overlay's box, so the camera insets are stale.
       requestAnimationFrame(() => this.resize());
     };
-    seg($('seg-uisize'), (v) => apply(+v || 1), String(this.saved.uiScale ?? 1));
+    seg($('seg-uisize'), (v) => apply(+v || 1), String(this.saved.uiScale ?? 1.15));
   }
 
   bindLang() {
@@ -713,7 +718,7 @@ class App {
    */
   async runUpdate() {
     const btn = $('m-update');
-    const txt = $('m-update-txt');
+    const txt = $('m-update-lab');
     if (btn.classList.contains('busy')) return;
     btn.classList.add('busy');
     const scope = this.view === 'globe' ? 'global' : 'japan';
@@ -1240,7 +1245,7 @@ class App {
     });
     $('btn-forget').addEventListener('click', () => {
       store.clear();
-      $('saved-note').textContent = '저장된 설정을 지웠습니다. 새로고침하면 기본값으로 시작합니다.';
+      $('saved-note').textContent = t('저장된 설정을 지웠습니다. 새로고침하면 기본값으로 시작합니다.');
       this.persist = () => {};      // stop re-saving before the reload
     });
     $('sel-speed').addEventListener('change', (e) => { s.speed = +e.target.value; });
@@ -1301,7 +1306,7 @@ class App {
     const btn = $('btn-play');
     btn.textContent = on ? '❙❙' : '▶';
     btn.classList.toggle('playing', on);
-    btn.setAttribute('aria-label', on ? '일시정지' : '재생');
+    btn.setAttribute('aria-label', t(on ? '일시정지' : '재생'));
     this.dirty = true;
   }
 
@@ -1316,11 +1321,13 @@ class App {
     const isc = spans.find((s) => s.source === 'isc');
     const usgs = spans.find((s) => s.source === 'usgs');
 
-    $('dr-src').textContent = `데이터: ISC(JMA) + USGS\n`
-      + `수록: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}\n`
-      + `갱신: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
-    const built = (m.generated_utc ?? '').slice(0, 10);
-    if (built) $('m-update-txt').textContent = `${t('업데이트')} ${built}`;
+    $('dr-src').textContent = `${t('데이터')}: ISC(JMA) + USGS
+`
+      + `${t('수록')}: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}
+`
+      + `${t('갱신')}: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
+    const built = (m.generated_utc ?? '').slice(2, 10).replace(/-/g, '.');
+    if (built) $('m-update-txt').textContent = built;
     $('head-sub').textContent = isc
       ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`
@@ -1328,8 +1335,8 @@ class App {
         + `${m.time_end.slice(0, 4)} · USGS ANSS ComCat`;
 
     const rows = spans.map((s) => {
-      const name = s.source === 'isc' ? 'ISC (JMA 포함)' : 'USGS ComCat';
-      return `<div class="kv"><span>${name}</span><b>${nf.format(s.count)}건 · `
+      const name = s.source === 'isc' ? t('ISC (JMA 포함)') : 'USGS ComCat';
+      return `<div class="kv"><span>${name}</span><b>${count(s.count)} · `
         + `M${s.mag_min.toFixed(1)}+</b></div>`
         + `<div class="kv"><span></span><b>${s.first.slice(0, 10)} → ${s.last.slice(0, 10)}</b></div>`;
     }).join('');
@@ -1399,7 +1406,7 @@ class App {
     } else {
       $('legend-title').textContent = t('밀도 (균일 색)');
       ramp.style.display = 'none';
-      ticksEl.innerHTML = '<span style="left:0">겹칠수록 밝아집니다 — 발광 합성 권장</span>';
+      ticksEl.innerHTML = `<span style="left:0">${t('겹칠수록 밝아집니다 — 발광 합성 권장')}</span>`;
     }
   }
 
@@ -1559,7 +1566,7 @@ class App {
     $('card-magtype').textContent = onGlobe
       ? t('규모') : (this.data.magTypeOf(i) || t('규모'));
     $('card-place').textContent = onGlobe
-      ? coords : (this.data.placeOf(i) || '(이름 없음)');
+      ? coords : (this.data.placeOf(i) || t('(이름 없음)'));
     $('card-utc').textContent = `${fmtISO(at)} ${fmtClock(at)}`;
     $('card-jst').textContent = `${fmtISO(jst)} ${fmtClock(jst)}`;
     $('card-depth').textContent = `${e.depth[i].toFixed(1)} km`;
@@ -1572,7 +1579,7 @@ class App {
     if (url) {
       link.href = url;
       link.textContent = this.data.sourceOf(i) === 'isc'
-        ? 'ISC 상세 페이지 ↗' : 'USGS 상세 페이지 ↗';
+        ? t('ISC 상세 페이지 ↗') : t('USGS 상세 페이지 ↗');
       link.hidden = false;
     } else {
       link.hidden = true;
@@ -1735,8 +1742,6 @@ const pad = (n) => String(n).padStart(2, '0');
 const fmtISO = (d) =>
   `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 const fmtClock = (d) => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-const fmtDateKo = (d) =>
-  `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
 
 // Started last so every helper above is initialised before the app builds.
 initLang();

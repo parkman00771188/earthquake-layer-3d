@@ -69,13 +69,28 @@ def credential() -> tuple[str, str]:
 
 def request(method: str, url: str, token: str, body: dict | None = None) -> dict:
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method, headers={
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "User-Agent": f"{REPO}-uploader",
-    })
-    with urllib.request.urlopen(req, timeout=600) as r:
-        return json.load(r)
+    # GitHub answers 502/503 now and then on large blob pushes; a couple of
+    # retries is the difference between a finished upload and a lost one.
+    for attempt in range(4):
+        req = urllib.request.Request(url, data=data, method=method, headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"{REPO}-uploader",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=600) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code < 500 or attempt == 3:
+                raise
+            print(f"[upload] {e.code} from GitHub, retrying in {5 * (attempt + 1)}s")
+            time.sleep(5 * (attempt + 1))
+        except (TimeoutError, urllib.error.URLError) as e:
+            if attempt == 3:
+                raise
+            print(f"[upload] {type(e).__name__}, retrying in {5 * (attempt + 1)}s")
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError("unreachable")
 
 
 def collect() -> list[str]:

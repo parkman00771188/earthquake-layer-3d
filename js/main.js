@@ -186,7 +186,7 @@ class App {
     const days = onGlobe ? layer.tDays[i] : this.data.days(i);
 
     // Picking from the mobile list should land you on the map, looking at it.
-    if (document.body.classList.contains('m-tab-list')) this.setMobileTab('map');
+    if (document.body.classList.contains('m-list')) this.setMobileList(false);
 
     if (days < s.rangeStart || days > s.rangeEnd) {
       // Widen the period just enough to contain it.
@@ -384,20 +384,139 @@ class App {
     this.dirty = true;
   }
 
-  /** Mobile-only bottom tabs; the body class drives what the CSS shows. */
-  setMobileTab(t) {
-    for (const b of $('mtabs').querySelectorAll('button')) {
-      b.classList.toggle('on', b.dataset.t === t);
+  /* ── mobile shell: drawer, bottom sheets, period popup ──── */
+
+  bindMobile() {
+    /* recent-event cards */
+    $('mcards-all').addEventListener('click', () => this.setMobileList(true));
+    $('mcards-list').addEventListener('click', (ev) => {
+      const card = ev.target.closest('.mc');
+      if (card) this.focusEvent(+card.dataset.i);
+    });
+    $('m-list-close').addEventListener('click', () => this.setMobileList(false));
+
+    /* floating layer / filter buttons -> bottom sheets */
+    $('fab-layer').addEventListener('click', () => this.toggleSheet('layer'));
+    $('fab-filter').addEventListener('click', () => this.toggleSheet('filter'));
+    $('m-sheet-close').addEventListener('click', () => this.toggleSheet(null));
+    $('m-sheet-tabs').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if (btn) this.toggleSheet(btn.dataset.s, true);
+    });
+    // Tapping the map dismisses whichever sheet is up.
+    this.canvas.addEventListener('pointerdown', () => {
+      if (document.body.classList.contains('m-sheet')) this.toggleSheet(null);
+    });
+
+    /* drawer */
+    const drawer = $('mdrawer');
+    const openDrawer = (on) => { drawer.hidden = !on; };
+    $('m-menu').addEventListener('click', () => openDrawer(true));
+    $('m-info').addEventListener('click', () => openDrawer(true));
+    $('dr-close').addEventListener('click', () => openDrawer(false));
+    drawer.addEventListener('click', (ev) => { if (ev.target === drawer) openDrawer(false); });
+    seg($('dr-view'), (v) => { this.setView(v); markChip($('seg-view'), (b) => b.dataset.v === v); },
+      'globe');
+    drawer.addEventListener('click', (ev) => {
+      const item = ev.target.closest('.dr-item');
+      if (!item) return;
+      openDrawer(false);
+      const go = item.dataset.go;
+      if (go === 'list') this.setMobileList(true);
+      else if (go === 'update') this.runUpdate();
+      else this.toggleSheet(go);
+    });
+
+    /* period popup */
+    const pop = $('mperiod');
+    $('m-edit-period').addEventListener('click', () => {
+      $('mp-a').value = fmtISO(this.daysToDate(this.state.rangeStart));
+      $('mp-b').value = fmtISO(this.daysToDate(this.state.rangeEnd));
+      $('mp-a').min = $('mp-b').min = fmtISO(this.daysToDate(0));
+      $('mp-a').max = $('mp-b').max = fmtISO(this.daysToDate(this.data.totalDays));
+      markChip($('mp-chips'), () => false);
+      pop.hidden = false;
+    });
+    const closePop = () => { pop.hidden = true; };
+    $('mp-close').addEventListener('click', closePop);
+    pop.addEventListener('click', (ev) => { if (ev.target === pop) closePop(); });
+    $('mp-chips').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button');
+      if (!btn) return;
+      markChip($('mp-chips'), (b) => b === btn);
+      const total = this.data.totalDays;
+      const d = btn.dataset.days === 'all' ? total : +btn.dataset.days;
+      $('mp-a').value = fmtISO(this.daysToDate(Math.max(0, total - d)));
+      $('mp-b').value = fmtISO(this.daysToDate(total));
+    });
+    $('mp-apply').addEventListener('click', () => {
+      const a = Date.parse(`${$('mp-a').value}T00:00:00Z`);
+      const b = Date.parse(`${$('mp-b').value}T00:00:00Z`);
+      if (Number.isFinite(a) && Number.isFinite(b)) {
+        this.setRange([this.dateToDays(new Date(a)), this.dateToDays(new Date(b))]);
+        this.state.now = this.state.rangeEnd;
+        this.syncTime();
+        markChip($('span-presets'), () => false);
+      }
+      closePop();
+    });
+
+    /* update button */
+    $('m-update').addEventListener('click', () => this.runUpdate());
+  }
+
+  /**
+   * One bottom sheet at a time. Passing null closes; tapping the button of an
+   * already-open sheet closes it too, unless `force` (the in-sheet tabs, which
+   * should only ever switch).
+   */
+  toggleSheet(which, force = false) {
+    const body = document.body;
+    const open = !!which && (force || !body.classList.contains(`m-sheet-${which}`));
+    body.classList.remove('m-sheet', 'm-sheet-layer', 'm-sheet-filter');
+    if (open) body.classList.add('m-sheet', `m-sheet-${which}`);
+    for (const b of $('m-sheet-tabs').querySelectorAll('button')) {
+      b.classList.toggle('on', open && b.dataset.s === which);
     }
-    for (const c of [...document.body.classList]) {
-      if (c.startsWith('m-tab-')) document.body.classList.remove(c);
-    }
-    document.body.classList.add(`m-tab-${t}`);
-    if (t === 'list') {
+    if (open) $('panel').querySelector('.panel-scroll').scrollTop = 0;
+  }
+
+  setMobileList(on) {
+    document.body.classList.toggle('m-list', on);
+    if (on) {
+      this.toggleSheet(null);
       this.feed.setOpen(true);
       this.feed.render(true);
     }
-    this.resize();                   // overlay set changed; recompute insets
+    this.resize();
+  }
+
+  /**
+   * Refresh the catalogue. Served from a local `serve.py`, this asks the
+   * server to run the fetch/build scripts for real; on a static host (GitHub
+   * Pages) there is nothing to run, so it re-fetches the published payload
+   * with a cache-busting reload instead.
+   */
+  async runUpdate() {
+    const btn = $('m-update');
+    const txt = $('m-update-txt');
+    if (btn.classList.contains('busy')) return;
+    btn.classList.add('busy');
+    const scope = this.view === 'globe' ? 'global' : 'japan';
+    try {
+      txt.textContent = '갱신 중…';
+      const r = await fetch(`api/update?scope=${scope}`, { method: 'POST' });
+      if (!r.ok) throw new Error(String(r.status));
+      const out = await r.json();
+      txt.textContent = out.ok ? '갱신 완료 · 새로고침' : '갱신 실패';
+      if (out.ok) setTimeout(() => location.reload(), 1200);
+    } catch {
+      // Static host: the freshest thing available is whatever was published.
+      txt.textContent = '최신 데이터 확인 중…';
+      location.reload();
+    } finally {
+      btn.classList.remove('busy');
+    }
   }
 
   /** First arrival of the worldwide cloud: apply the current panel state. */
@@ -641,38 +760,13 @@ class App {
       this.setRange([T - span, T]);
       this.state.now = this.state.rangeEnd;
       this.syncTime();
-      markChip($('m-periods'), () => false);
     });
 
     /* view scope: the whole-Earth globe opens; Japan is one click away */
     seg($('seg-view'), (v) => { this.setView(v); }, 'globe');
 
-    /* mobile bottom tabs: 지도 / 목록 / 필터 / 설정 */
-    document.body.classList.add('m-tab-map');
-    $('mtabs').addEventListener('click', (ev) => {
-      const btn = ev.target.closest('button');
-      if (btn) this.setMobileTab(btn.dataset.t);
-    });
+    this.bindMobile();
 
-    /* mobile map-tab chrome: recent cards, quick chips, period presets */
-    $('mcards-all').addEventListener('click', () => this.setMobileTab('list'));
-    $('mcards-list').addEventListener('click', (ev) => {
-      const card = ev.target.closest('.mc');
-      if (card) this.focusEvent(+card.dataset.i);
-    });
-    for (const id of ['mq-mag', 'mq-depth', 'mq-filter']) {
-      $(id).addEventListener('click', () => this.setMobileTab('filter'));
-    }
-    $('m-prev').addEventListener('click', () => this.nudge(-365));
-    $('m-next').addEventListener('click', () => this.nudge(365));
-    chips($('m-periods'), (btn) => {
-      const total = this.data.totalDays;
-      const d = btn.dataset.days === 'all' ? total : +btn.dataset.days;
-      this.setRange([total - d, total]);
-      this.state.now = this.state.rangeEnd;
-      this.syncTime();
-      markChip($('span-presets'), () => false);
-    });
     $('m-filter-reset').addEventListener('click', () => {
       const set = (id, v) => {
         const el = $(id);
@@ -694,7 +788,6 @@ class App {
       this.state.now = this.state.rangeEnd;
       this.syncTime();
       markChip($('span-presets'), (b) => b.dataset.span === 'all');
-      markChip($('m-periods'), (b) => b.dataset.days === 'all');
     });
 
     /* mode */
@@ -1000,8 +1093,11 @@ class App {
     const isc = spans.find((s) => s.source === 'isc');
     const usgs = spans.find((s) => s.source === 'usgs');
 
-    $('m-src').textContent = `데이터: ISC(JMA) + USGS · `
-      + `${m.time_start.slice(0, 4)}–${m.time_end.slice(0, 4)}`;
+    $('dr-src').textContent = `데이터: ISC(JMA) + USGS\n`
+      + `수록: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}\n`
+      + `갱신: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
+    const built = (m.generated_utc ?? '').slice(11, 16);
+    if (built) $('m-update-txt').textContent = `업데이트 ${built}`;
     $('head-sub').textContent = isc
       ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`
@@ -1110,6 +1206,10 @@ class App {
     $('tl-range').textContent =
       `${fmtISO(this.daysToDate(fromDays))} → ${fmtISO(at)} UTC · `
       + `${win == null ? '누적' : '이동 구간'}`;
+    // The header carries the selected period on phones, where the sub-line
+    // about sources has no room and the range is what you keep adjusting.
+    $('m-span').textContent = `${fmtISO(this.daysToDate(s.rangeStart))} ~ `
+      + `${fmtISO(this.daysToDate(s.rangeEnd))}`;
 
     this.statsDue = true;
     this.dirty = true;
@@ -1123,15 +1223,8 @@ class App {
     $('stat-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
 
     if (window.innerWidth <= 700) {
-      const t = layer.tDays;
-      const n = t.length;
-      const c24 = n ? n - layer.indexAtOrAfter(t[n - 1] - 1) : 0;
-      $('ms-24h').textContent = nf.format(c24);
-      $('ms-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
-      $('ms-energy').innerHTML = energy > 0
-        ? `${energy.toExponential(2)}<em>J</em>` : '–';
-      $('mq-mag-v').textContent = $('out-mag').textContent;
-      $('mq-depth-v').textContent = $('out-depth').textContent;
+      $('dr-visible').textContent = nf.format(count);
+      $('dr-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
       this.renderMobileCards();
     }
 

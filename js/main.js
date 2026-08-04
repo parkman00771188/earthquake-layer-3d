@@ -1521,7 +1521,8 @@ class App {
     const w = card.offsetWidth * z;
     const h = card.offsetHeight * z;
     const left = clamp(x - w / 2, 12, Math.max(12, window.innerWidth - w - 12));
-    const top = clamp(y + 42, 12, Math.max(12, window.innerHeight - h - 12));
+    // Clear the marker's own radius (132 px wide) before the card starts.
+    const top = clamp(y + 80, 12, Math.max(12, window.innerHeight - h - 12));
 
     card.style.left = `${left / z}px`;
     card.style.top = `${top / z}px`;

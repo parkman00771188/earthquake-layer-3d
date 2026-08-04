@@ -396,6 +396,7 @@ export class GlobeView {
       autoRotate: false, autoRotateSpeed: 0.35,
       enabled: false,
     });
+    this.controls.addEventListener('start', () => { this.fly = null; });
 
     this.body = new THREE.Mesh(
       new THREE.SphereGeometry(1, 96, 48),
@@ -494,12 +495,41 @@ export class GlobeView {
    * closes to a fixed working distance so a picked event always lands at a
    * legible zoom instead of wherever the last gesture left it.
    */
-  focusOn(lon, lat, depth = 0) {
+  focusOn(lon, lat, depth = 0, { animate = true } = {}) {
     const dir = this.markAt(lon, lat, depth);
     const d = Math.min(this.camera.position.length(), R * 2.1);
-    this.camera.position.copy(dir).multiplyScalar(d);
+    const to = dir.clone().multiplyScalar(d);
     this.controls.target.set(0, 0, 0);
+
+    if (!animate) {
+      this.camera.position.copy(to);
+      this.controls.update();
+      return;
+    }
+    // Glide instead of cut: watching the globe roll to the epicentre tells you
+    // where on Earth you just went, which a jump cut throws away.
+    this.fly = { from: this.camera.position.clone(), to, t: 0, secs: 1.1 };
+  }
+
+  /** Advance the glide; true while it still needs frames. */
+  stepFly(dt) {
+    const f = this.fly;
+    if (!f) return false;
+    f.t = Math.min(1, f.t + dt / f.secs);
+    const k = f.t < 0.5 ? 2 * f.t * f.t : 1 - ((-2 * f.t + 2) ** 2) / 2;   // ease in-out
+
+    const a = f.from.clone().normalize();
+    const b = f.to.clone().normalize();
+    // Slerp the direction so the camera sweeps along the sphere, and lerp the
+    // radius separately -- a straight lerp would cut through the planet.
+    const q = new THREE.Quaternion().setFromUnitVectors(a, b);
+    const step = new THREE.Quaternion().slerp(q, k);
+    const radius = f.from.length() + (f.to.length() - f.from.length()) * k;
+    this.camera.position.copy(a).applyQuaternion(step).multiplyScalar(radius);
     this.controls.update();
+
+    if (f.t >= 1) this.fly = null;
+    return true;
   }
 
   /** Ring an epicentre without touching the camera. */
@@ -618,8 +648,9 @@ export class GlobeView {
   }
 
   update(dt = 0) {
+    const flying = this.stepFly(dt);
     this.controls.update();
-    return this.marker.tick(dt);
+    return this.marker.tick(dt) || flying;
   }
 
   resize(w, h, pixelRatio = 1) {

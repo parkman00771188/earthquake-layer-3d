@@ -26,29 +26,42 @@ void main() {
   float r = length(gl_PointCoord - 0.5) * 2.0;
   if (r > 1.0) discard;
 
-  // Five white rings fading outward mark the spot, with a red ring breathing
-  // out past them. No filled centre: the event itself stays visible.
+  const float PI = 3.14159265;
+
+  // The rings breathe a hair in and out together, so the target never looks
+  // like a frozen decal.
+  float breathe = sin(uPulse * PI * 2.0) * 0.012;
+
+  // A highlight sweeps outward through the five rings: each one brightens as
+  // the wave crosses its radius, which reads as energy leaving the epicentre.
+  float wavePos = mix(0.10, 0.95, 1.0 - pow(1.0 - uPulse, 1.7));
+
   float white = 0.0;
   for (int k = 0; k < 5; k++) {
-    float rad = 0.13 + float(k) * 0.115;          // 0.13 .. 0.59
-    float fade = 1.0 - float(k) * 0.17;           // dimmer further out
-    white = max(white, smoothstep(0.026, 0.004, abs(r - rad)) * fade);
+    float fk = float(k);
+    float rad = 0.17 + fk * 0.155 + breathe;      // 0.17 .. 0.79
+    float base = 1.0 - fk * 0.14;                 // dimmer further out
+    float d = (rad - wavePos) / 0.11;
+    float boost = 1.0 + 1.15 * exp(-d * d);
+    white = max(white, smoothstep(0.026, 0.004, abs(r - rad)) * base * boost);
   }
 
-  // Ease-out travel plus a soft fade, so the pulse glides instead of ticking.
-  float e = 1.0 - pow(1.0 - uPulse, 2.2);
-  float echo = smoothstep(0.032, 0.0, abs(r - mix(0.60, 1.0, e)))
-             * (1.0 - smoothstep(0.55, 1.0, uPulse));
+  // The red ring starts faint at the centre, swells as it travels, and thins
+  // away again at the rim.
+  float e = 1.0 - pow(1.0 - uPulse, 2.0);
+  float rad = mix(0.18, 1.0, e);
+  float env = pow(sin(PI * uPulse), 0.75);        // faint -> full -> faint
+  float echo = smoothstep(mix(0.040, 0.022, e), 0.0, abs(r - rad)) * env;
 
   float a = clamp(white + echo, 0.0, 1.0);
   if (a <= 0.004) discard;
 
-  gl_FragColor = vec4(mix(uHot, uColor, white / max(a, 1e-4)), a);
+  gl_FragColor = vec4(mix(uHot, uColor, clamp(white / max(a, 1e-4), 0.0, 1.0)), a);
 }
 `;
 
 export class SelectionMarker {
-  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 104 } = {}) {
+  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 132 } = {}) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e4);
@@ -76,7 +89,7 @@ export class SelectionMarker {
     this.index = null;
   }
 
-  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 104 * dpr; }
+  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 132 * dpr; }
 
   /** @param {number[]} positions flat xyz array from the quake layer */
   show(index, positions) {
@@ -100,7 +113,7 @@ export class SelectionMarker {
   /** Advance the pulse; returns true while it still needs redrawing. */
   tick(dt) {
     if (!this.points.visible) return false;
-    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.55) % 1;
+    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.45) % 1;
     return true;
   }
 }

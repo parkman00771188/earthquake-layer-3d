@@ -197,7 +197,7 @@ export class QuakeLayer {
       uMagSizes: { value: [...MAG_SIZE_DEFAULTS] },
       uMagScale: { value: 1 },
       uMagBand: { value: new Array(10).fill(1) },
-      uSoft: { value: 0.3 },
+      uSoft: { value: 0.5 },   // matches the 50% sharpness default
       uOpacity: { value: 0.85 },
       uHalfHeight: { value: 450 },
       uColorMode: { value: 0 },

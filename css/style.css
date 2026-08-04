@@ -861,12 +861,15 @@ input[type=checkbox]:checked::after {
 }
 @media (max-width: 1080px) {
   #legend { display: none; }
+  /* Narrow enough that the histogram deserves the space the date column
+     was holding; 230px still fits the date and the range line unwrapped. */
+  #timeline { grid-template-columns: 230px 1fr 150px; gap: 14px; padding: 0 14px; }
+  .tl-date b { font-size: 15.5px; }
 }
 @media (max-width: 860px) {
   :root { --panel-w: 280px; --tl-h: 96px; }
   #feed { display: none; }
-  #timeline { grid-template-columns: minmax(190px, auto) 1fr; gap: 14px; padding: 0 12px; }
-  .tl-date b { font-size: 15.5px; }
+  #timeline { grid-template-columns: 230px 1fr; gap: 14px; padding: 0 12px; }
   .tl-right { display: none; }
   #head .readout { gap: 13px; }
   #card { right: 12px; left: 12px; width: auto; }

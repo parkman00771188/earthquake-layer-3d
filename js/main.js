@@ -1423,8 +1423,7 @@ class App {
     $('tl-date').textContent = fmtDate(at);
     const fromDays = win == null ? s.rangeStart : Math.max(s.rangeStart, s.now - win);
     $('tl-range').textContent =
-      `${fmtISO(this.daysToDate(fromDays))} → ${fmtISO(at)} UTC · `
-      + `${t(win == null ? '누적' : '이동 구간')}`;
+      `${fmtISO(this.daysToDate(fromDays))} → ${fmtISO(at)} UTC`;
     // The header carries the selected period on phones, where the sub-line
     // about sources has no room and the range is what you keep adjusting.
     $('m-span').textContent = `${fmtISO(this.daysToDate(s.rangeStart))} ~ `

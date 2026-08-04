@@ -219,10 +219,10 @@ class App {
     this.feed.setSelected(i);
 
     if (onGlobe) {
-      // Swing the globe to the epicentre, close in, and ring it. The detail
-      // card is a Japan-catalogue affair (places, source links) so it stays shut.
+      // Swing the globe to the epicentre, close in, ring it and open its card.
       const ev = layer.events;
       this.globe.focusOn(ev.lon[i], ev.lat[i], ev.depth[i]);
+      this.showCard(i);
       this.dirty = true;
       return;
     }
@@ -514,6 +514,7 @@ class App {
       $('mcards').classList.toggle('collapsed');
       this.renderMobileCards();
     });
+    $('mcards-all').addEventListener('click', () => this.openAllList());
     $('mcards-list').addEventListener('click', (ev) => {
       const card = ev.target.closest('.mc');
       if (card) this.focusEvent(+card.dataset.i);
@@ -1470,26 +1471,42 @@ class App {
     });
   }
 
+  /**
+   * Detail card for the picked event. The worldwide catalogue carries no place
+   * names, magnitude types or source links, so those rows step aside and the
+   * coordinates take the headline slot.
+   */
   showCard(i) {
-    const e = this.data.events;
-    const at = this.data.dateAt(i);
+    const onGlobe = this.view === 'globe' && this.globe?.layer;
+    const data = onGlobe ? this.globeData : this.data;
+    const e = data.events;
+    const at = data.dateAt(i);
     const jst = new Date(at.getTime() + 9 * 3600000);
-    const src = this.data.sourceOf(i);
+
+    const lat = e.lat[i];
+    const lon = e.lon[i];
+    const coords = `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? 'N' : 'S'} `
+      + `${Math.abs(lon).toFixed(3)}°${lon >= 0 ? 'E' : 'W'}`;
 
     $('card').hidden = false;
     $('card-mag').textContent = `M${e.mag[i].toFixed(1)}`;
-    $('card-magtype').textContent = this.data.magTypeOf(i) || '규모';
-    $('card-place').textContent = this.data.placeOf(i) || '(이름 없음)';
+    $('card-magtype').textContent = onGlobe
+      ? t('규모') : (this.data.magTypeOf(i) || t('규모'));
+    $('card-place').textContent = onGlobe
+      ? coords : (this.data.placeOf(i) || '(이름 없음)');
     $('card-utc').textContent = `${fmtISO(at)} ${fmtClock(at)}`;
     $('card-jst').textContent = `${fmtISO(jst)} ${fmtClock(jst)}`;
     $('card-depth').textContent = `${e.depth[i].toFixed(1)} km`;
-    $('card-loc').textContent = `${e.lat[i].toFixed(3)}°N ${e.lon[i].toFixed(3)}°E`;
+    $('card-loc').textContent = coords;
+    // JST is a Japan-catalogue nicety; it means nothing for a Chilean quake.
+    $('card-jst').closest('.kv, div')?.classList.toggle('hide', !!onGlobe);
 
     const link = $('card-link');
-    const url = this.data.urlOf(i);
+    const url = onGlobe ? null : this.data.urlOf(i);
     if (url) {
       link.href = url;
-      link.textContent = src === 'isc' ? 'ISC 상세 페이지 ↗' : 'USGS 상세 페이지 ↗';
+      link.textContent = this.data.sourceOf(i) === 'isc'
+        ? 'ISC 상세 페이지 ↗' : 'USGS 상세 페이지 ↗';
       link.hidden = false;
     } else {
       link.hidden = true;

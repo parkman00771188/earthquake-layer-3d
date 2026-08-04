@@ -70,7 +70,7 @@ code {
    are meaningless on a sphere (axis labels, the pick tooltip/card) and the
    Japan-only controls marked .jp-only leave the stage. */
 body.globe-mode #labels, body.globe-mode #tip,
-body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
+body.globe-mode .jp-only { display: none !important; }
 
 #seg-view { margin-top: 12px; width: fit-content; pointer-events: auto; }
 #seg-view button { padding: 5px 14px; font-size: 11px; }
@@ -239,7 +239,8 @@ body.panel-collapsed #m-update { right: 46px; }
 #feed.collapsed #feed-toggle { border-bottom: 0; }
 #feed-toggle:hover { color: var(--ink); }
 #feed-toggle .caret {
-  font-size: 9px; transition: transform .22s; color: var(--ink-faint);
+  font-size: 14px; line-height: 1; width: 14px; text-align: center;
+  transition: transform .22s; color: var(--accent);
 }
 #feed.collapsed #feed-toggle .caret { transform: rotate(-90deg); }
 #feed-toggle b {
@@ -600,7 +601,9 @@ input[type=range]:hover::-moz-range-thumb { background: var(--accent); }
 /* dual range: two sliders stacked in one track */
 .dual-track { position: relative; height: 16px; }
 .dual-track input[type=range] {
-  position: absolute; inset: 0; margin: 0; pointer-events: none;
+  /* Above the ::before/::after track art: as later "children" those pseudo
+     elements would otherwise paint straight over the thumbs. */
+  position: absolute; inset: 0; z-index: 1; margin: 0; pointer-events: none;
 }
 .dual-track input[type=range]::-webkit-slider-runnable-track { background: none; }
 .dual-track input[type=range]::-moz-range-track { background: none; }
@@ -778,6 +781,7 @@ input[type=checkbox]:checked::after {
   color: var(--ink-faint); font-size: 15px; line-height: 1;
 }
 #card-close:hover { color: var(--ink); background: rgba(255,255,255,.07); }
+.card-grid .hide { display: none; }
 .card-mag { display: flex; align-items: baseline; gap: 5px; }
 .card-mag b {
   font: 700 27px/1 var(--mono); color: var(--hot);
@@ -1214,6 +1218,13 @@ input[type=checkbox]:checked::after {
     display: block; position: fixed; z-index: 20;
     left: 12px; right: 0; top: 118px;
   }
+  #mcards { display: flex; flex-wrap: wrap; align-items: center; }
+  #mcards-list { flex-basis: 100%; }
+  #mcards-all {
+    padding: 6px 10px; margin: 0 0 7px 8px;
+    font-size: 11px; color: var(--accent);
+  }
+  #mcards.collapsed #mcards-all { display: none; }
   #mcards-toggle {
     display: flex; align-items: center; gap: 7px;
     padding: 6px 11px; margin-bottom: 7px;
@@ -1221,7 +1232,8 @@ input[type=checkbox]:checked::after {
     border-radius: 999px; backdrop-filter: blur(12px);
     font-size: 11px; color: var(--ink-dim);
   }
-  #mcards-toggle .caret { font-size: 9px; transition: transform .22s; }
+  #mcards-toggle .caret { font-size: 14px; line-height: 1; color: var(--accent);
+    transition: transform .22s; }
   #mcards.collapsed #mcards-toggle .caret { transform: rotate(-90deg); }
   #mcards-toggle b { font-weight: 600; }
   #mcards-count { font: 500 10px/1 var(--mono); font-style: normal; color: var(--accent); }
@@ -1273,5 +1285,9 @@ input[type=checkbox]:checked::after {
   .mag-bands label { padding: 7px 5px; }
   .row { margin-top: 15px; }
 
-  #card { right: 10px; left: 10px; width: auto; bottom: 190px; }
+  #card,
+  #panel.collapsed ~ #card {
+    left: 10px; right: 60px; width: auto;   /* right: clears the map buttons */
+    bottom: calc(var(--tl-real, 180px) + 12px);
+  }
 }

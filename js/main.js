@@ -283,6 +283,7 @@ class App {
       mode: this.state.mode,
       colorMode: this.state.colorMode,
       mapStyle: this.state.mapStyle,
+      uiScale: this.state.uiScale,
       range: [this.state.rangeStart, this.state.rangeEnd],
       now: this.state.now,
       spanPreset: $('span-presets').querySelector('button.on')?.dataset.span ?? null,
@@ -352,6 +353,10 @@ class App {
     window.addEventListener('resize', () => this.resize());
     // Publish the timeline card's real height; the floating map buttons ride
     // just above it, and it changes with the language and the viewport.
+    new ResizeObserver(() => {
+      const b = $('head').getBoundingClientRect().bottom;
+      document.documentElement.style.setProperty('--head-bottom', `${Math.round(b)}px`);
+    }).observe($('head'));
     new ResizeObserver(([e]) => {
       // Border box, not contentRect: the card's padding is part of what the
       // buttons have to clear.
@@ -418,6 +423,16 @@ class App {
   /* ── mobile shell: drawer, bottom sheets, period popup ──── */
 
   /* ── language ───────────────────────────────────────────── */
+
+  bindUiSize() {
+    const apply = (s) => {
+      this.state.uiScale = s;
+      document.documentElement.style.setProperty('--ui-zoom', s);
+      // Zoom changes every overlay's box, so the camera insets are stale.
+      requestAnimationFrame(() => this.resize());
+    };
+    seg($('seg-uisize'), (v) => apply(+v || 1), String(this.saved.uiScale ?? 1));
+  }
 
   bindLang() {
     const build = (root) => {
@@ -965,6 +980,7 @@ class App {
       markChip($('dr-view'), (b) => b.dataset.v === v);
     }, 'globe');
 
+    this.bindUiSize();
     this.bindLang();
     this.bindLists();
     this.bindMobile();
@@ -1238,6 +1254,8 @@ class App {
     });
     const closeCard = () => {
       $('card').hidden = true;
+      this.cardAnchor = null;
+      this.globe?.marker.hide();
       this.marker.hide();
       this.feed.setSelected(null);
       this.dirty = true;
@@ -1463,12 +1481,10 @@ class App {
       if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 5) return;
 
       if (this.view === 'globe') {
-        // Clicking the globe marks and describes the quake in place -- moving
-        // the camera under the finger that just aimed at it feels wrong.
         const g = this.globe?.pick(ev.clientX, ev.clientY, this.canvas);
         if (g == null) return;
         const e = this.globe.layer.events;
-        this.globe.markAt(e.lon[g], e.lat[g], e.depth[g]);
+        this.globe.focusOn(e.lon[g], e.lat[g], e.depth[g]);
         this.feed.setSelected(g);
         this.showCard(g);
         this.dirty = true;
@@ -1481,6 +1497,36 @@ class App {
       this.showCard(i);
       this.dirty = true;
     });
+  }
+
+  /**
+   * Park the card just under the marker instead of in a fixed corner, so it
+   * never lands on top of the thing it describes. Runs every frame the card is
+   * open, because the camera is usually still gliding into place.
+   */
+  positionCard() {
+    const card = $('card');
+    if (card.hidden || !this.cardAnchor) return;
+    const cam = this.view === 'globe' ? this.globe?.camera : this.camera;
+    if (!cam) return;
+
+    const v = this.cardAnchor.clone().project(cam);
+    if (v.z > 1) { card.style.visibility = 'hidden'; return; }   // behind the globe
+    card.style.visibility = '';
+
+    const z = +getComputedStyle(document.documentElement)
+      .getPropertyValue('--ui-zoom') || 1;
+    const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
+    const w = card.offsetWidth * z;
+    const h = card.offsetHeight * z;
+    const left = clamp(x - w / 2, 12, Math.max(12, window.innerWidth - w - 12));
+    const top = clamp(y + 42, 12, Math.max(12, window.innerHeight - h - 12));
+
+    card.style.left = `${left / z}px`;
+    card.style.top = `${top / z}px`;
+    card.style.right = 'auto';
+    card.style.bottom = 'auto';
   }
 
   /**
@@ -1501,6 +1547,9 @@ class App {
       + `${Math.abs(lon).toFixed(3)}°${lon >= 0 ? 'E' : 'W'}`;
 
     $('card').hidden = false;
+    this.cardAnchor = onGlobe
+      ? this.globe.markPos.clone()
+      : this.worldPos(i);
     $('card-mag').textContent = `M${e.mag[i].toFixed(1)}`;
     $('card-magtype').textContent = onGlobe
       ? t('규모') : (this.data.magTypeOf(i) || t('규모'));
@@ -1554,6 +1603,7 @@ class App {
         if (this.statsDue && tg - statAt > 110) { statAt = tg; this.updateStats(); }
         this.globe.sync(this.quakes, s);
         this.globe.update(dt);
+        this.positionCard();
         this.renderer.render(this.globe.scene, this.globe.camera);
         return;
       }
@@ -1569,6 +1619,7 @@ class App {
       if (this.dirty) {
         this.dirty = false;
         this.labels.update(this.camera, this.viewInsets());
+        this.positionCard();
         this.renderer.render(this.scene, this.camera);
       }
     };

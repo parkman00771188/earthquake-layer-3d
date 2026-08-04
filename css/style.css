@@ -148,6 +148,14 @@ body.globe-mode .jp-only { display: none !important; }
   margin-top: 12px; font: 400 11px/1.5 var(--mono); color: var(--ink-faint);
 }
 
+/* ── UI text scale ─────────────────────────────────────────── */
+/* Zoom scales each chrome panel and its own coordinate space, so the map
+   canvas and the projected axis labels stay untouched. */
+#head, #feed, #legend, #panel, #timeline, #card, #tip, #m-update,
+#mcards, #mfabs, #mdrawer, #minfo, #mperiod, #mall, #gguide {
+  zoom: var(--ui-zoom, 1);
+}
+
 /* ── header ────────────────────────────────────────────────── */
 #head {
   position: fixed; top: 16px; left: 18px; z-index: 20;
@@ -216,12 +224,14 @@ body.panel-collapsed #m-update { right: 46px; }
 
 /* ── rolling event list (left) ───────────────────────────── */
 #feed {
-  position: fixed; left: 18px; top: 158px; z-index: 22;
+  position: fixed; left: 18px; z-index: 22;
+  /* --head-bottom is measured: the header grows when the stats wrap. */
+  top: calc(var(--head-bottom, 158px) + 14px);
   width: 268px;
   display: flex; flex-direction: column;
   /* Content-sized, capped so it never runs into the timeline: an empty tail
      under a short list just looks broken. */
-  max-height: calc(100vh - 158px - var(--tl-h) - 34px);
+  max-height: calc(100vh - var(--head-bottom, 158px) - var(--tl-h) - 48px);
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); backdrop-filter: blur(14px);
   overflow: hidden;

@@ -509,7 +509,8 @@ export class GlobeView {
     const c = Math.cos(la);
     const dir = new THREE.Vector3(c * Math.cos(lo), Math.sin(la), -c * Math.sin(lo));
     const r = R - depth * KM2U * (this.layer?.uniforms.uDepthExag.value ?? 1);
-    this.marker.showAt(dir.x * r, dir.y * r, dir.z * r);
+    this.markPos = new THREE.Vector3(dir.x * r, dir.y * r, dir.z * r);
+    this.marker.showAt(this.markPos.x, this.markPos.y, this.markPos.z);
     return dir;
   }
 

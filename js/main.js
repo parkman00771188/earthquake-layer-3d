@@ -20,7 +20,7 @@ import { SelectionMarker } from './marker.js';
 import { EventFeed, ChangeFeed } from './feed.js';
 import * as store from './store.js';
 import {
-  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient, rampColor,
+  DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient,
 } from './palette.js';
 
 const $ = (id) => document.getElementById(id);
@@ -387,12 +387,6 @@ class App {
   /* ── mobile shell: drawer, bottom sheets, period popup ──── */
 
   bindMobile() {
-    /* recent-event cards */
-    $('mcards-all').addEventListener('click', () => this.setMobileList(true));
-    $('mcards-list').addEventListener('click', (ev) => {
-      const card = ev.target.closest('.mc');
-      if (card) this.focusEvent(+card.dataset.i);
-    });
     $('m-list-close').addEventListener('click', () => this.setMobileList(false));
 
     /* floating layer / filter buttons -> bottom sheets */
@@ -1225,33 +1219,12 @@ class App {
     if (window.innerWidth <= 700) {
       $('dr-visible').textContent = nf.format(count);
       $('dr-max').textContent = peak ? `M${peak.mag.toFixed(1)}` : '–';
-      this.renderMobileCards();
     }
 
     this.feed?.render();
     this.statsDue = false;
   }
 
-  /** The horizontal "최근 발생" card strip on the mobile map tab. */
-  renderMobileCards() {
-    const data = this.feed.data;
-    const { mag, depth } = data.events;
-    const esc = (s) => String(s).replace(/[&<>]/g,
-      (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-
-    $('mcards-list').innerHTML = this.feed.collect().slice(0, 8).map((i) => {
-      const d = data.dateAt(i);
-      const when = `${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
-        + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-      return `<button class="mc" data-i="${i}">`
-        + `<b style="color:${rampColor(MAG_STOPS, mag[i])}">M${mag[i].toFixed(1)}</b>`
-        + `<span class="mc-when">${when}</span>`
-        + `<span class="mc-where">${esc(data.placeOf(i) || '')}</span>`
-        + `<span class="mc-depth"><i style="background:${rampColor(DEPTH_STOPS, depth[i])}"></i>`
-        + `${Math.round(depth[i])} km</span>`
-        + '</button>';
-    }).join('');
-  }
 
   /* ── pointer ────────────────────────────────────────────── */
 

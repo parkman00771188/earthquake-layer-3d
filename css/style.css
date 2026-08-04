@@ -868,35 +868,6 @@ input[type=checkbox]:checked::after {
   #m-update.busy i { background: #ffb454; box-shadow: 0 0 6px rgba(255, 180, 84, .8); }
   @keyframes m-spin { to { transform: rotate(360deg); } }
 
-  /* recent cards */
-  #mcards { display: block; position: fixed; z-index: 20; left: 12px; right: 0; top: 116px; }
-  .mc-head {
-    display: flex; justify-content: space-between; align-items: center;
-    margin: 0 12px 6px 2px; font-size: 11px; color: var(--ink-dim);
-  }
-  #mcards-all { color: var(--accent); font-size: 11px; padding: 4px 2px; }
-  #mcards-list {
-    display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 3px 0;
-    scrollbar-width: none;
-  }
-  #mcards-list::-webkit-scrollbar { display: none; }
-  .mc {
-    flex: 0 0 auto; min-width: 116px; max-width: 150px; text-align: left;
-    padding: 9px 11px 8px; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 11px; backdrop-filter: blur(10px);
-  }
-  .mc b { font: 700 13.5px/1 var(--mono); }
-  .mc .mc-when { display: block; margin-top: 5px; font: 400 9px/1 var(--mono); color: var(--ink-faint); }
-  .mc .mc-where {
-    display: block; margin-top: 4px; font-size: 10px; color: var(--ink-dim);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .mc .mc-depth {
-    display: flex; align-items: center; gap: 5px; margin-top: 5px;
-    font: 400 9.5px/1 var(--mono); color: var(--ink-dim);
-  }
-  .mc .mc-depth i { width: 7px; height: 7px; border-radius: 50%; }
-
   /* floating layer / filter buttons */
   #mfabs {
     display: flex; flex-direction: column; gap: 10px;
@@ -1021,8 +992,8 @@ input[type=checkbox]:checked::after {
   .sec-map h2::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2335d6f5' stroke-width='1.7' stroke-linejoin='round'%3E%3Cpath d='M12 3 3 8l9 5 9-5-9-5z'/%3E%3Cpath d='M4.5 12 3 13l9 5 9-5-1.5-1'/%3E%3C/svg%3E"); }
 
   /* sheets and the list dim the map chrome */
-  body.m-sheet #mfabs, body.m-sheet #mcards, body.m-sheet #m-update,
-  body.m-list #mcards, body.m-list #m-update, body.m-list #head,
+  body.m-sheet #mfabs, body.m-sheet #m-update,
+  body.m-list #m-update, body.m-list #head,
   body.m-list #timeline, body.m-list #mfabs, body.m-list #card, body.m-list #tip {
     display: none !important;
   }

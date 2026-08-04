@@ -825,6 +825,7 @@ input[type=checkbox]:checked::after {
   font-size: 10.5px; color: var(--accent); text-decoration: none;
 }
 #card-link:hover { text-decoration: underline; }
+#card-link[hidden] { display: none; }   /* author display would beat [hidden] */
 
 /* ── failure notice ───────────────────────────────────────── */
 #fail {
@@ -1001,73 +1002,6 @@ input[type=checkbox]:checked::after {
   font-size: 13.5px; font-weight: 600;
 }
 
-
-/* ── view switch on the map ─────────────────────────────── */
-#head #seg-view {
-  display: flex; margin-top: 9px; pointer-events: auto;
-  background: rgba(5, 8, 14, .82); backdrop-filter: blur(12px);
-}
-#head #seg-view button { padding: 7px 15px; font-size: 11.5px; }
-
-/* ── recent-event cards, collapsed by default ───────────── */
-#mcards {
-  display: block; position: fixed; z-index: 20;
-  left: 12px; right: 0; top: 118px;
-}
-#mcards { display: flex; flex-wrap: wrap; align-items: center; }
-#mcards-list { flex-basis: 100%; }
-#mcards-all {
-  padding: 6px 10px; margin: 0 0 7px 8px;
-  font-size: 11px; color: var(--accent);
-}
-#mcards.collapsed #mcards-all { display: none; }
-#mcards-toggle {
-  display: flex; align-items: center; gap: 7px;
-  padding: 6px 11px; margin-bottom: 7px;
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: 999px; backdrop-filter: blur(12px);
-  font-size: 11px; color: var(--ink-dim);
-}
-#mcards-toggle .caret { font-size: 14px; line-height: 1; color: var(--accent);
-  transition: transform .22s; }
-#mcards.collapsed #mcards-toggle .caret { transform: rotate(-90deg); }
-#mcards-toggle b { font-weight: 600; }
-#mcards-count { font: 500 10px/1 var(--mono); font-style: normal; color: var(--accent); }
-#mcards.collapsed #mcards-list { display: none; }
-#mcards-list {
-  display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 3px 0;
-  scrollbar-width: none;
-}
-#mcards-list::-webkit-scrollbar { display: none; }
-.mc {
-  flex: 0 0 auto; min-width: 118px; max-width: 150px; text-align: left;
-  padding: 9px 11px 8px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 11px; backdrop-filter: blur(10px);
-}
-.mc b { font: 700 13.5px/1 var(--mono); }
-.mc .mc-when { display: block; margin-top: 5px; font: 400 9px/1 var(--mono); color: var(--ink-faint); }
-.mc .mc-where {
-  display: block; margin-top: 4px; font-size: 10px; color: var(--ink-dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.mc .mc-depth {
-  display: flex; align-items: center; gap: 5px; margin-top: 5px;
-  font: 400 9.5px/1 var(--mono); color: var(--ink-dim);
-}
-.mc .mc-depth i { width: 7px; height: 7px; border-radius: 50%; }
-
-/* The speed <select>: the native arrow goes missing on some Android builds,
-   so draw our own. Must out-specify the panel's #sel-speed rule. */
-.tl-right #sel-speed {
-  appearance: none; -webkit-appearance: none;
-  padding: 9px 24px 9px 9px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397a6bd' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 7px center;
-  background-size: 12px 12px;
-}
-
-#mall { padding: 14px; }
-.ma-box { max-height: 82vh; }
 
 /* ── mobile tab bar (hidden on desktop) ───────────────────── */
 /* legacy id, no longer rendered */
@@ -1271,6 +1205,73 @@ input[type=checkbox]:checked::after {
     margin: 16px 0 0; font: 400 9.5px/1.7 var(--mono);
     color: var(--ink-faint); white-space: pre-line;
   }
+
+  /* ── view switch on the map ─────────────────────────────── */
+  #head #seg-view {
+    display: flex; margin-top: 9px; pointer-events: auto;
+    background: rgba(5, 8, 14, .82); backdrop-filter: blur(12px);
+  }
+  #head #seg-view button { padding: 7px 15px; font-size: 11.5px; }
+
+  /* ── recent-event cards, collapsed by default ───────────── */
+  #mcards {
+    display: block; position: fixed; z-index: 20;
+    left: 12px; right: 0; top: 118px;
+  }
+  #mcards { display: flex; flex-wrap: wrap; align-items: center; }
+  #mcards-list { flex-basis: 100%; }
+  #mcards-all {
+    padding: 6px 10px; margin: 0 0 7px 8px;
+    font-size: 11px; color: var(--accent);
+  }
+  #mcards.collapsed #mcards-all { display: none; }
+  #mcards-toggle {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 11px; margin-bottom: 7px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 999px; backdrop-filter: blur(12px);
+    font-size: 11px; color: var(--ink-dim);
+  }
+  #mcards-toggle .caret { font-size: 14px; line-height: 1; color: var(--accent);
+    transition: transform .22s; }
+  #mcards.collapsed #mcards-toggle .caret { transform: rotate(-90deg); }
+  #mcards-toggle b { font-weight: 600; }
+  #mcards-count { font: 500 10px/1 var(--mono); font-style: normal; color: var(--accent); }
+  #mcards.collapsed #mcards-list { display: none; }
+  #mcards-list {
+    display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 3px 0;
+    scrollbar-width: none;
+  }
+  #mcards-list::-webkit-scrollbar { display: none; }
+  .mc {
+    flex: 0 0 auto; min-width: 118px; max-width: 150px; text-align: left;
+    padding: 9px 11px 8px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 11px; backdrop-filter: blur(10px);
+  }
+  .mc b { font: 700 13.5px/1 var(--mono); }
+  .mc .mc-when { display: block; margin-top: 5px; font: 400 9px/1 var(--mono); color: var(--ink-faint); }
+  .mc .mc-where {
+    display: block; margin-top: 4px; font-size: 10px; color: var(--ink-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mc .mc-depth {
+    display: flex; align-items: center; gap: 5px; margin-top: 5px;
+    font: 400 9.5px/1 var(--mono); color: var(--ink-dim);
+  }
+  .mc .mc-depth i { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* The speed <select>: the native arrow goes missing on some Android builds,
+     so draw our own. Must out-specify the panel's #sel-speed rule. */
+  .tl-right #sel-speed {
+    appearance: none; -webkit-appearance: none;
+    padding: 9px 24px 9px 9px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2397a6bd' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 7px center;
+    background-size: 12px 12px;
+  }
+
+  #mall { padding: 14px; }
+  .ma-box { max-height: 82vh; }
 
   /* touch targets */
   input[type=range] { height: 26px; }

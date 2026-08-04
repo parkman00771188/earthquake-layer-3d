@@ -1460,8 +1460,20 @@ class App {
     });
     this.canvas.addEventListener('pointerup', (ev) => {
       // Anything beyond a few pixels of travel was an orbit drag, not a click.
-      if (this.view !== 'japan') return;
       if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 5) return;
+
+      if (this.view === 'globe') {
+        // Clicking the globe marks and describes the quake in place -- moving
+        // the camera under the finger that just aimed at it feels wrong.
+        const g = this.globe?.pick(ev.clientX, ev.clientY, this.canvas);
+        if (g == null) return;
+        const e = this.globe.layer.events;
+        this.globe.markAt(e.lon[g], e.lat[g], e.depth[g]);
+        this.feed.setSelected(g);
+        this.showCard(g);
+        this.dirty = true;
+        return;
+      }
       const i = this.picker.pick(ev.clientX, ev.clientY);
       if (i == null) return;
       this.marker.show(i, this.quakes.positions);

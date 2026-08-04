@@ -26,14 +26,20 @@ void main() {
   float r = length(gl_PointCoord - 0.5) * 2.0;
   if (r > 1.0) discard;
 
-  // Two tight white rings mark the spot; a red ring keeps expanding out of
-  // them. No filled centre -- it buried the event it was pointing at.
-  float ringA = smoothstep(0.026, 0.004, abs(r - 0.15));
-  float ringB = smoothstep(0.026, 0.004, abs(r - 0.26));
-  float echo  = smoothstep(0.034, 0.0, abs(r - mix(0.30, 1.0, uPulse)))
-              * (1.0 - uPulse * 0.85);
+  // Five white rings fading outward mark the spot, with a red ring breathing
+  // out past them. No filled centre: the event itself stays visible.
+  float white = 0.0;
+  for (int k = 0; k < 5; k++) {
+    float rad = 0.13 + float(k) * 0.115;          // 0.13 .. 0.59
+    float fade = 1.0 - float(k) * 0.17;           // dimmer further out
+    white = max(white, smoothstep(0.026, 0.004, abs(r - rad)) * fade);
+  }
 
-  float white = max(ringA, ringB);
+  // Ease-out travel plus a soft fade, so the pulse glides instead of ticking.
+  float e = 1.0 - pow(1.0 - uPulse, 2.2);
+  float echo = smoothstep(0.032, 0.0, abs(r - mix(0.60, 1.0, e)))
+             * (1.0 - smoothstep(0.55, 1.0, uPulse));
+
   float a = clamp(white + echo, 0.0, 1.0);
   if (a <= 0.004) discard;
 
@@ -42,7 +48,7 @@ void main() {
 `;
 
 export class SelectionMarker {
-  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 82 } = {}) {
+  constructor({ color = 0xffffff, hot = 0xff2b1f, sizePx = 104 } = {}) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e4);
@@ -70,7 +76,7 @@ export class SelectionMarker {
     this.index = null;
   }
 
-  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 82 * dpr; }
+  setPixelRatio(dpr) { this.uniforms.uSizePx.value = 104 * dpr; }
 
   /** @param {number[]} positions flat xyz array from the quake layer */
   show(index, positions) {
@@ -94,7 +100,7 @@ export class SelectionMarker {
   /** Advance the pulse; returns true while it still needs redrawing. */
   tick(dt) {
     if (!this.points.visible) return false;
-    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.8) % 1;
+    this.uniforms.uPulse.value = (this.uniforms.uPulse.value + dt * 0.55) % 1;
     return true;
   }
 }

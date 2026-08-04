@@ -142,6 +142,7 @@ class GlobeLayer {
       tDays[i] = d;
     }
     this.tDays = tDays;
+    this.dirs = pos;          // unit vectors; scaled by depth at pick time
     const energy = new Float32Array(n);
     for (let i = 0; i < n; i++) energy[i] = 10 ** (1.5 * mag[i] + 4.8);
     this.energy = energy;
@@ -494,18 +495,76 @@ export class GlobeView {
    * legible zoom instead of wherever the last gesture left it.
    */
   focusOn(lon, lat, depth = 0) {
-    const la = (lat * Math.PI) / 180;
-    const lo = (lon * Math.PI) / 180;
-    const c = Math.cos(la);
-    const dir = new THREE.Vector3(c * Math.cos(lo), Math.sin(la), -c * Math.sin(lo));
-
+    const dir = this.markAt(lon, lat, depth);
     const d = Math.min(this.camera.position.length(), R * 2.1);
     this.camera.position.copy(dir).multiplyScalar(d);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
+  }
 
+  /** Ring an epicentre without touching the camera. */
+  markAt(lon, lat, depth = 0) {
+    const la = (lat * Math.PI) / 180;
+    const lo = (lon * Math.PI) / 180;
+    const c = Math.cos(la);
+    const dir = new THREE.Vector3(c * Math.cos(lo), Math.sin(la), -c * Math.sin(lo));
     const r = R - depth * KM2U * (this.layer?.uniforms.uDepthExag.value ?? 1);
     this.marker.showAt(dir.x * r, dir.y * r, dir.z * r);
+    return dir;
+  }
+
+  /**
+   * Cursor -> event index, or null. Same angular test the Japan picker uses:
+   * keep the vertex whose offset from the ray is smallest in screen terms, so
+   * the tolerance matches how big the dot looks rather than world distance.
+   */
+  pick(clientX, clientY, canvas) {
+    const layer = this.layer;
+    if (!layer) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    this.ndc ??= new THREE.Vector2();
+    this.ray ??= new THREE.Raycaster();
+    this.ndc.set(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.ray.setFromCamera(this.ndc, this.camera);
+    const { origin, direction } = this.ray.ray;
+
+    const p11 = this.camera.projectionMatrix.elements[5];
+    const tan = 12 / ((rect.height * 0.5) * p11);
+    let bestScore = tan * tan;
+    let best = -1;
+
+    const { mag, depth } = layer.events;
+    const dirs = layer.dirs;
+    const [lo, hi] = layer.range;
+    const { mLo, mHi, dLo, dHi } = layer.bounds();
+    const exag = layer.uniforms.uDepthExag.value;
+    const ox = origin.x, oy = origin.y, oz = origin.z;
+    const dx = direction.x, dy = direction.y, dz = direction.z;
+
+    for (let i = lo; i < hi; i++) {
+      const m = mag[i];
+      if (m < mLo || m > mHi) continue;
+      const d = depth[i];
+      if (d < dLo || d > dHi) continue;
+      if (!layer.bandPass(m)) continue;
+
+      const rr = R - d * KM2U * exag;
+      const wx = dirs[i * 3] * rr - ox;
+      const wy = dirs[i * 3 + 1] * rr - oy;
+      const wz = dirs[i * 3 + 2] * rr - oz;
+
+      const along = wx * dx + wy * dy + wz * dz;
+      if (along <= 0.05) continue;
+      const perp2 = wx * wx + wy * wy + wz * wz - along * along;
+      if (perp2 <= 0) return i;
+      const score = perp2 / (along * along);
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    return best < 0 ? null : best;
   }
 
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }

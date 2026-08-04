@@ -52,9 +52,9 @@ const DICT = {
     en: 'No earthquakes to show before this moment.',
     ja: 'この時点より前に表示する地震がありません。',
   },
-  '현재 시점 기준 최근 50건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다': {
-    en: 'Latest 50 at the playhead · filters and period applied · tap to locate',
-    ja: '現在時点の最新50件・フィルターと期間を適用・タップで位置表示',
+  '현재 시점 기준 최근 10건 · 필터·기간 적용 · 클릭하면 위치가 표시됩니다': {
+    en: 'Latest 10 at the playhead · filters and period applied · tap to locate',
+    ja: '現在時点の最新10件・フィルターと期間を適用・タップで位置表示',
   },
   '깊이 (km)': { en: 'Depth (km)', ja: '深さ (km)' },
   '규모 (M)': { en: 'Magnitude (M)', ja: '規模 (M)' },

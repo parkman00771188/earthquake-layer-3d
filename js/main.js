@@ -161,7 +161,7 @@ class App {
       toggle: $('feed-toggle'),
       layer: this.quakes,
       data: this.data,
-      limit: 50,
+      limit: 10,
       onPick: (i) => this.focusEvent(i),
     });
     this.feed.onToggle = (open) => {
@@ -169,7 +169,13 @@ class App {
       this.recenter();
       this.persist();
     };
-    if (this.saved.feedOpen === false) this.feed.setOpen(false);
+    // Tablets and portrait screens open with the list folded away: it would
+    // otherwise eat a third of a screen that is mostly map.
+    const tabletish = window.innerWidth <= 1280
+      || window.innerHeight >= window.innerWidth;
+    if (this.saved.feedOpen ?? !tabletish) { /* stays open */ } else {
+      this.feed.setOpen(false);
+    }
 
     this.changeFeed = new ChangeFeed({
       root: $('upd'),

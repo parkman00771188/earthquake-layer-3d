@@ -166,6 +166,35 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
   margin: 4px 0 0; font: 400 10.5px/1 var(--mono);
   color: var(--ink-faint); letter-spacing: .02em;
 }
+/* header buttons sit above the map, so they opt back into pointer events */
+.head-row { display: flex; align-items: center; gap: 12px; }
+.head-actions { display: flex; gap: 4px; pointer-events: auto; }
+.head-actions button {
+  width: 30px; height: 30px; display: grid; place-items: center;
+  color: var(--ink-faint); border-radius: 8px; transition: color .15s;
+}
+.head-actions button:hover { color: var(--accent); }
+.head-actions button.m-only { display: none; }
+.head-actions svg { width: 18px; height: 18px; }
+
+#m-update {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 12px; padding: 6px 11px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 999px; backdrop-filter: blur(12px);
+  font: 500 10.5px/1 var(--sans); color: var(--ink-dim);
+  pointer-events: auto; transition: border-color .15s, color .15s;
+}
+#m-update:hover { border-color: var(--line-hi); color: var(--ink); }
+#m-update svg { width: 13px; height: 13px; }
+#m-update i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #35d07f; box-shadow: 0 0 6px rgba(53, 208, 127, .8);
+}
+#m-update.busy svg { animation: m-spin 1s linear infinite; }
+#m-update.busy i { background: #ffb454; box-shadow: 0 0 6px rgba(255, 180, 84, .8); }
+@keyframes m-spin { to { transform: rotate(360deg); } }
+
 .readout { display: flex; gap: 18px; margin: 14px 0 0; }
 .readout div { margin: 0; }
 .readout dt {
@@ -181,7 +210,7 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
 
 /* ── rolling event list (left) ───────────────────────────── */
 #feed {
-  position: fixed; left: 18px; top: 148px; z-index: 22;
+  position: fixed; left: 18px; top: 200px; z-index: 22;
   width: 268px;
   display: flex; flex-direction: column;
   bottom: calc(var(--tl-h) + 178px);
@@ -358,16 +387,27 @@ body.globe-mode #card, body.globe-mode .jp-only { display: none !important; }
   transition: transform .32s cubic-bezier(.4,0,.2,1);
 }
 #panel.collapsed { transform: translateX(var(--panel-w)); }
+/* The grab handle is the only way back to a collapsed panel, so it is sized
+   and lit to be findable against a bright satellite map, not just a dark one. */
 #panel-toggle {
-  position: absolute; top: 14px; left: -27px;
-  width: 27px; height: 34px;
-  background: var(--panel); border: 1px solid var(--line); border-right: 0;
-  border-radius: var(--radius) 0 0 var(--radius);
-  color: var(--ink-dim); font-size: 11px;
-  backdrop-filter: blur(16px);
-  transition: color .15s;
+  position: absolute; top: 16px; left: -36px;
+  width: 36px; height: 56px;
+  background:
+    linear-gradient(180deg, rgba(53, 214, 245, .2), rgba(53, 214, 245, .1)),
+    var(--panel-sol);
+  border: 1px solid rgba(53, 214, 245, .45); border-right: 0;
+  border-radius: 13px 0 0 13px;
+  color: #b6f0ff; font-size: 14px;
+  box-shadow: -7px 0 20px rgba(0, 0, 0, .55), 0 0 14px rgba(53, 214, 245, .16);
+  transition: color .15s, background .15s, box-shadow .15s;
 }
-#panel-toggle:hover { color: var(--accent); }
+#panel-toggle:hover {
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(53, 214, 245, .34), rgba(53, 214, 245, .18)),
+    var(--panel-sol);
+  box-shadow: -7px 0 24px rgba(0, 0, 0, .6), 0 0 20px rgba(53, 214, 245, .3);
+}
 #panel.collapsed #panel-toggle { transform: rotate(180deg); }
 
 .panel-scroll {
@@ -887,31 +927,15 @@ input[type=checkbox]:checked::after {
     font: 400 10.5px/1 var(--mono); color: var(--ink-faint);
   }
   #head .readout, #head #seg-view { display: none; }
-  .head-actions { display: flex; gap: 4px; pointer-events: auto; }
-  .head-actions button {
-    width: 34px; height: 34px; display: grid; place-items: center;
-    color: var(--ink-dim); border-radius: 9px;
-  }
+  .head-actions button { width: 34px; height: 34px; color: var(--ink-dim); }
+  .head-actions button.m-only { display: grid; }
   .head-actions svg { width: 21px; height: 21px; }
   #globe-status { font-size: 10px; max-width: 70vw; }
 
-  /* update pill */
+  /* update pill: floats over the map instead of flowing in the header */
   #m-update {
-    display: flex; align-items: center; gap: 6px;
-    position: fixed; z-index: 22; left: 12px; top: 78px;
-    padding: 6px 10px 6px 11px;
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 999px; backdrop-filter: blur(12px);
-    font: 500 10.5px/1 var(--sans); color: var(--ink-dim);
+    position: fixed; z-index: 22; left: 12px; top: 78px; margin-top: 0;
   }
-  #m-update svg { width: 13px; height: 13px; }
-  #m-update i {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #35d07f; box-shadow: 0 0 6px rgba(53, 208, 127, .8);
-  }
-  #m-update.busy svg { animation: m-spin 1s linear infinite; }
-  #m-update.busy i { background: #ffb454; box-shadow: 0 0 6px rgba(255, 180, 84, .8); }
-  @keyframes m-spin { to { transform: rotate(360deg); } }
 
   /* floating layer / filter buttons */
   #mfabs {

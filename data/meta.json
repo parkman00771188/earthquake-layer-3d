@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-08-05T00:56:49+00:00",
+  "generated_utc": "2026-08-06T00:30:00+00:00",
   "sources": {
     "isc": {
       "name": "ISC Bulletin (includes JMA)",
@@ -23,9 +23,9 @@
     },
     {
       "source": "usgs",
-      "count": 2862,
+      "count": 2865,
       "first": "2024-10-01T05:20:02.055000Z",
-      "last": "2026-08-04T19:56:58.739000Z",
+      "last": "2026-08-05T22:59:25.088000Z",
       "mag_min": 3.2
     }
   ],
@@ -40,63 +40,63 @@
     "reference_latitude": 35.0
   },
   "minmagnitude": 1.93,
-  "count": 1236519,
+  "count": 1236522,
   "epoch": "1900-01-01T00:00:00Z",
   "time_start": "1900-01-18T07:46:00Z",
-  "time_end": "2026-08-04T19:56:58.739000Z",
-  "t_max_seconds": 3994862218,
+  "time_end": "2026-08-05T22:59:25.088000Z",
+  "t_max_seconds": 3994959565,
   "mag_min": 1.93,
   "mag_max": 9.09,
   "depth_min": 0.0,
   "depth_max": 700.0,
   "binary": {
-    "bytes": 35859067,
+    "bytes": 35859154,
     "header_bytes": 16,
     "arrays": {
       "lon": {
         "offset": 16,
         "type": "Float32",
-        "length": 1236519
+        "length": 1236522
       },
       "lat": {
-        "offset": 4946092,
+        "offset": 4946104,
         "type": "Float32",
-        "length": 1236519
+        "length": 1236522
       },
       "depth": {
-        "offset": 9892168,
+        "offset": 9892192,
         "type": "Float32",
-        "length": 1236519
+        "length": 1236522
       },
       "mag": {
-        "offset": 14838244,
+        "offset": 14838280,
         "type": "Float32",
-        "length": 1236519
+        "length": 1236522
       },
       "t": {
-        "offset": 19784320,
+        "offset": 19784368,
         "type": "Uint32",
-        "length": 1236519
+        "length": 1236522
       },
       "place": {
-        "offset": 24730396,
+        "offset": 24730456,
         "type": "Uint16",
-        "length": 1236519
+        "length": 1236522
       },
       "magType": {
-        "offset": 27203434,
+        "offset": 27203500,
         "type": "Uint16",
-        "length": 1236519
+        "length": 1236522
       },
       "extId": {
-        "offset": 29676472,
+        "offset": 29676544,
         "type": "Uint32",
-        "length": 1236519
+        "length": 1236522
       },
       "src": {
-        "offset": 34622548,
+        "offset": 34622632,
         "type": "Uint8",
-        "length": 1236519
+        "length": 1236522
       }
     }
   },
@@ -121,14 +121,14 @@
   },
   "last_update": {
     "available": true,
-    "run_utc": "2026-08-05T00:56:36+00:00",
+    "run_utc": "2026-08-06T00:29:48+00:00",
     "mode": "incremental",
     "counts": {
-      "fetched": 160,
+      "fetched": 155,
       "added": 3,
-      "revised": 1,
+      "revised": 4,
       "removed": 0,
-      "metadata_only": 1
+      "metadata_only": 2
     },
     "initial_import": false
   },
@@ -1654,8 +1654,8 @@
       168,
       129,
       122,
-      97,
-      14
+      98,
+      16
     ]
   }
 }

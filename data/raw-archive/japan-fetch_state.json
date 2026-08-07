@@ -1,16 +1,16 @@
 {
   "mode_of_last_run": "incremental",
-  "last_run_utc": "2026-08-06T00:29:48+00:00",
-  "event_count": 1236522,
+  "last_run_utc": "2026-08-07T00:32:07+00:00",
+  "event_count": 1236529,
   "per_source": {
     "isc": 1233657,
-    "usgs": 2865
+    "usgs": 2872
   },
   "catalog_start": "1900-01-18T07:46:00.000Z",
-  "catalog_end": "2026-08-05T22:59:25.088Z",
+  "catalog_end": "2026-08-06T17:50:40.068Z",
   "handoff": "2024-10-01",
   "plan_key": "isc<2024-10-01|usgs>=2024-10-01",
-  "completed_through": "2026-08-07T00:29:36",
+  "completed_through": "2026-08-08T00:31:55",
   "scan_finished": true,
   "region": {
     "name": "Japan and surrounding seas",

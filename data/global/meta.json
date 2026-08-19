@@ -1,14 +1,14 @@
 {
-  "generated_utc": "2026-08-19T02:04:37+00:00",
+  "generated_utc": "2026-08-19T02:07:41+00:00",
   "source": "USGS ANSS ComCat (M2.0+) + ISC Bulletin (M3.0+), worldwide, deduplicated",
   "sources": {
-    "usgs_rows": 1578670,
+    "usgs_rows": 1578671,
     "isc_rows": 2088209,
     "duplicates_removed": 694911
   },
   "epoch": "1900-01-01T00:00:00Z",
-  "count": 2971968,
-  "time_end_seconds": 3996093022,
+  "count": 2971969,
+  "time_end_seconds": 3996093585,
   "bands": [
     {
       "key": "m2",
@@ -19,8 +19,8 @@
     {
       "key": "m3",
       "path": "quakes-m3.bin",
-      "count": 1474793,
-      "bytes": 29495868
+      "count": 1474794,
+      "bytes": 29495888
     },
     {
       "key": "m4",
@@ -1558,7 +1558,7 @@
       5225,
       5331,
       5620,
-      2506
+      2507
     ]
   },
   "land": {

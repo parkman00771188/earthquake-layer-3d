@@ -63,23 +63,29 @@ def row_time(raw: str) -> datetime | None:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def truncate_from(catalog: str, cutoff: datetime) -> int:
-    """Drop rows at or after cutoff, rewriting in place; returns rows kept."""
+def truncate_from(catalog: str, cutoff: datetime) -> tuple[int, dict[str, dict]]:
+    """
+    Drop rows at or after cutoff, rewriting in place. Returns the number of
+    rows kept plus the dropped rows keyed by id, so the refetched tail can be
+    diffed against what it replaced.
+    """
     if not os.path.exists(catalog):
-        return 0
+        return 0, {}
     tmp = catalog + ".tmp"
     kept = 0
-    with open(catalog, newline="", encoding="utf-8") as src,             open(tmp, "w", newline="", encoding="utf-8") as dst:
+    dropped: dict[str, dict] = {}
+    with open(catalog, newline="", encoding="utf-8") as src, open(tmp, "w", newline="", encoding="utf-8") as dst:
         writer = csv.DictWriter(dst, fieldnames=FIELDS, extrasaction="ignore")
         writer.writeheader()
         for row in csv.DictReader(src):
             t = row_time(row.get("time", ""))
             if t is not None and t >= cutoff:
+                dropped[row.get("id", "")] = row
                 continue
             writer.writerow(row)
             kept += 1
     os.replace(tmp, catalog)
-    return kept
+    return kept, dropped
 
 
 def fetch_window(a: datetime, b: datetime) -> list[dict] | None:
@@ -110,6 +116,10 @@ def run_segment(seg_start: str, seg_end: str | None,
     if os.path.exists(state_path):
         with open(state_path, encoding="utf-8") as fh:
             state.update(json.load(fh))
+    # What the rewound tail held before vs. what this run writes back --
+    # diffed at the end into a "what changed" report (open segment only).
+    tail_dropped: dict[str, dict] = {}
+    tail_appended: dict[str, dict] = {}
     if state.get("done"):
         if seg_end is not None:
             log(f"[global] {catalog_name} already complete ({state['rows']:,} rows)")
@@ -121,7 +131,7 @@ def run_segment(seg_start: str, seg_end: str | None,
             datetime.fromisoformat(state["cursor"]).replace(tzinfo=timezone.utc)
             - timedelta(days=REWIND_DAYS),
             datetime.fromisoformat(seg_start).replace(tzinfo=timezone.utc))
-        kept = truncate_from(catalog, cutoff)
+        kept, tail_dropped = truncate_from(catalog, cutoff)
         state.update(cursor=iso(cutoff), rows=kept, done=False)
         log(f"[global] live tail resumes at {iso(cutoff)[:10]} "
             f"({REWIND_DAYS}d rewind, {kept:,} rows kept)")
@@ -160,6 +170,8 @@ def run_segment(seg_start: str, seg_end: str | None,
 
         for r in rows:
             writer.writerow(r)
+            if seg_end is None:
+                tail_appended[r.get("id", "")] = {k: r.get(k) for k in FIELDS}
         out.flush()
 
         state["rows"] += len(rows)
@@ -180,6 +192,11 @@ def run_segment(seg_start: str, seg_end: str | None,
         json.dump(state, fh)
     if state.get("done"):
         log(f"[global] {catalog_name} complete: {state['rows']:,} rows")
+        if seg_end is None:
+            import global_changes
+            c = global_changes.record("usgs", tail_dropped, tail_appended)["counts"]
+            log(f"[global] usgs changes: new={c['added']} revised={c['revised']} "
+                f"removed={c['removed']}")
     return bool(state.get("done"))
 
 

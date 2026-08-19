@@ -9,9 +9,7 @@
  */
 
 import { DEPTH_STOPS, MAG_STOPS, rampColor } from './palette.js';
-import { count, t } from './i18n.js';
-
-const pad = (n) => String(n).padStart(2, '0');
+import { count, fmtLocal, t } from './i18n.js';
 
 export class EventFeed {
   constructor({ root, list, empty, countEl, toggle, layer, data, onPick, limit = 50 }) {
@@ -103,9 +101,7 @@ export class EventFeed {
 
     const { mag, depth } = this.data.events;
     const rows = next.map((i) => {
-      const d = this.data.dateAt(i);
-      const stamp = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
-        + ` ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      const stamp = fmtLocal(this.data.dateAt(i));
       const place = this.data.placeOf(i);
       return `<li data-i="${i}"${i === this.selected ? ' class="on"' : ''}>`
         + `<span class="f-mag" style="--c:${rampColor(MAG_STOPS, mag[i])}">`

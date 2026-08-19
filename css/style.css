@@ -240,6 +240,14 @@ body.panel-collapsed #m-update { right: 46px; }
 #feed.collapsed { height: auto; }
 #feed.collapsed .feed-body { display: none; }
 
+
+/* Zone abbreviation next to list titles: rows show the visitor's clock. */
+.tz-tag {
+  font: 600 9px/1 var(--sans); font-style: normal;
+  color: var(--ink-dim); letter-spacing: .06em;
+  padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px;
+}
+
 #feed-toggle {
   flex: none; display: flex; align-items: center; gap: 8px;
   padding: 9px 11px; width: 100%;

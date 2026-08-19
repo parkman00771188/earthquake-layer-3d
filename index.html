@@ -63,6 +63,7 @@
   <button id="mcards-toggle">
     <span class="caret">▾</span>
     <b data-i18n="최근 발생">최근 발생</b>
+    <i class="tz-tag" id="mcards-tz"></i>
     <em id="mcards-count">–</em>
   </button>
   <button id="mcards-all" data-i18n="전체 보기">전체 보기</button>
@@ -145,6 +146,7 @@
   <div class="ma-box">
     <div class="ma-head">
       <b data-i18n="최근 지진 목록">최근 지진 목록</b>
+      <i class="tz-tag" id="ma-tz"></i>
       <span id="ma-count"></span>
       <button id="ma-close" aria-label="닫기" data-i18n-aria="닫기">✕</button>
     </div>
@@ -180,6 +182,7 @@
   <button id="feed-toggle" aria-expanded="true">
     <span class="caret">▾</span>
     <b data-i18n="최근 지진">최근 지진</b>
+    <i class="tz-tag" id="feed-tz"></i>
     <em id="feed-count">–</em>
   </button>
 
@@ -497,7 +500,7 @@
   <div class="card-place" id="card-place">–</div>
   <dl class="card-grid">
     <div><dt data-i18n="발생 (UTC)">발생 (UTC)</dt><dd id="card-utc">–</dd></div>
-    <div><dt data-i18n="발생 (일본 시각)">발생 (일본 시각)</dt><dd id="card-jst">–</dd></div>
+    <div><dt data-i18n="발생 (현지 시각)">발생 (현지 시각)</dt><dd id="card-local">–</dd></div>
     <div><dt data-i18n="깊이">깊이</dt><dd id="card-depth">–</dd></div>
     <div><dt data-i18n="위치">위치</dt><dd id="card-loc">–</dd></div>
   </dl>

@@ -23,7 +23,8 @@ import {
   DEPTH_STOPS, MAG_STOPS, TIME_STOPS, cssGradient, rampColor,
 } from './palette.js';
 import {
-  LANGS, applyI18n, count, detectLang, fmtDate, fmtDays, getLang, numFmt, setLang, t,
+  LANGS, applyI18n, count, detectLang, fmtDate, fmtDays, fmtLocal, getLang, numFmt,
+  setLang, t, tzAbbr,
 } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -472,6 +473,11 @@ class App {
     document.title = `${t(this.view === 'globe' ? '전세계 지진' : '일본 주변 지진')} 4D`;
     $('app-title').textContent = t(this.view === 'globe' ? '전세계 지진' : '일본 주변 지진');
     this.refreshUpdatedAgo();
+    // The rolling lists read in the visitor's clock; say which one, once.
+    for (const id of ['feed-tz', 'mcards-tz', 'ma-tz']) {
+      const el = $(id);
+      if (el) el.textContent = tzAbbr();
+    }
     // Bounce the controls that own dynamic labels through their handlers.
     for (const id of ['in-window', 'in-glow']) {
       $(id).dispatchEvent(new Event('input', { bubbles: true }));
@@ -574,9 +580,7 @@ class App {
     const data = this.feed.data;
     const { mag, depth } = data.events;
     return indices.map((i) => {
-      const d = data.dateAt(i);
-      const stamp = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
-        + ` ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      const stamp = fmtLocal(data.dateAt(i));
       return `<li data-i="${i}">`
         + `<span class="f-mag" style="--c:${rampColor(MAG_STOPS, mag[i])}">${mag[i].toFixed(1)}</span>`
         + `<span class="f-main"><span class="f-time">${stamp}</span>`
@@ -595,9 +599,7 @@ class App {
     const data = this.feed.data;
     const { mag, depth } = data.events;
     $('mcards-list').innerHTML = this.feed.collect().slice(0, 10).map((i) => {
-      const d = data.dateAt(i);
-      const when = `${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} `
-        + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+      const when = fmtLocal(data.dateAt(i)).slice(5);
       return `<button class="mc" data-i="${i}">`
         + `<b style="color:${rampColor(MAG_STOPS, mag[i])}">M${mag[i].toFixed(1)}</b>`
         + `<span class="mc-when">${when}</span>`
@@ -1573,7 +1575,6 @@ class App {
     const data = onGlobe ? this.globeData : this.data;
     const e = data.events;
     const at = data.dateAt(i);
-    const jst = new Date(at.getTime() + 9 * 3600000);
 
     const lat = e.lat[i];
     const lon = e.lon[i];
@@ -1590,11 +1591,19 @@ class App {
     $('card-place').textContent = onGlobe
       ? coords : (this.data.placeOf(i) || t('(이름 없음)'));
     $('card-utc').textContent = `${fmtISO(at)} ${fmtClock(at)}`;
-    $('card-jst').textContent = `${fmtISO(jst)} ${fmtClock(jst)}`;
+    // Epicentre-local time. The Japan catalogue is exactly JST; on the globe
+    // the offset is estimated from longitude (nautical zones), which can be
+    // an hour or so off the legal zone -- flagged in the tooltip.
+    const off = onGlobe
+      ? Math.max(-12, Math.min(14, Math.round(lon / 15)))
+      : 9;
+    const zone = onGlobe ? `UTC${off >= 0 ? '+' : ''}${off}` : 'JST';
+    const local = new Date(at.getTime() + off * 3600000);
+    const dd = $('card-local');
+    dd.textContent = `${fmtISO(local)} ${fmtClock(local)} (${zone})`;
+    dd.title = onGlobe ? t('경도 기반 근사 — 실제 법정 시간대와 다를 수 있습니다') : '';
     $('card-depth').textContent = `${e.depth[i].toFixed(1)} km`;
     $('card-loc').textContent = coords;
-    // JST is a Japan-catalogue nicety; it means nothing for a Chilean quake.
-    $('card-jst').closest('.kv, div')?.classList.toggle('hide', !!onGlobe);
 
     const link = $('card-link');
     const url = onGlobe ? null : this.data.urlOf(i);

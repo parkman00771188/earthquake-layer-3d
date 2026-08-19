@@ -256,7 +256,11 @@ const DICT = {
   '반복': { en: 'Loop', ja: '繰り返し' },
   '처음으로': { en: 'Restart', ja: '最初へ' },
   '발생 (UTC)': { en: 'Origin (UTC)', ja: '発生 (UTC)' },
-  '발생 (일본 시각)': { en: 'Origin (JST)', ja: '発生 (日本時間)' },
+  '발생 (현지 시각)': { en: 'Origin (local)', ja: '発生 (現地時間)' },
+  '경도 기반 근사 — 실제 법정 시간대와 다를 수 있습니다': {
+    en: 'Longitude-based estimate — may differ from the legal time zone',
+    ja: '経度による推定 — 法定時間帯と異なる場合があります',
+  },
   '위치': { en: 'Location', ja: '位置' },
   '데이터를 불러올 수 없습니다': { en: 'Could not load the data', ja: 'データを読み込めません' },
   '데이터 정보': { en: 'About the data', ja: 'データ情報' },
@@ -340,6 +344,51 @@ export function applyI18n(root = document) {
   for (const el of root.querySelectorAll('[data-i18n-aria]')) {
     el.setAttribute('aria-label', t(el.dataset.i18nAria));
   }
+}
+
+/* ── viewer time zone ─────────────────────────────────────────
+   Timestamps in the rolling lists read in the visitor's own clock; the
+   abbreviation (KST, JST, PDT, UTC+7 ...) is shown once next to the list
+   title so rows stay compact. */
+
+const TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+  catch { return 'UTC'; }
+})();
+
+// Intl's short names for most Asian zones are just "GMT+9"; these are the
+// household abbreviations for the audiences this site actually has.
+const TZ_ABBR = {
+  'Asia/Seoul': 'KST', 'Asia/Tokyo': 'JST', 'Asia/Shanghai': 'CST',
+  'Asia/Taipei': 'CST', 'Asia/Hong_Kong': 'HKT', 'Asia/Singapore': 'SGT',
+  UTC: 'UTC', 'Etc/UTC': 'UTC',
+};
+
+/** Short label for the viewer's zone: "KST", "PDT", "UTC+7", ... */
+export function tzAbbr(d = new Date()) {
+  if (TZ_ABBR[TZ]) return TZ_ABBR[TZ];
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'short' })
+      .formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? 'UTC';
+    return name.replace(/^GMT/, 'UTC');
+  } catch {
+    return 'UTC';
+  }
+}
+
+// sv-SE is the one locale whose default pattern is already "YYYY-MM-DD HH:MM".
+const LOCAL_FMT = (() => {
+  try {
+    return new Intl.DateTimeFormat('sv-SE', {
+      timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  } catch { return null; }
+})();
+
+/** "YYYY-MM-DD HH:MM" in the viewer's time zone. */
+export function fmtLocal(d) {
+  return LOCAL_FMT ? LOCAL_FMT.format(d) : d.toISOString().slice(0, 16).replace('T', ' ');
 }
 
 /** Locale-aware long date, e.g. 2026년 7월 30일 / 2026年7月30日 / Jul 30, 2026. */

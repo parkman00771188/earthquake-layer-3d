@@ -3,6 +3,13 @@
 Upload the working tree to GitHub without the git CLI.
 
     python scripts/upload_github.py ["commit message"]
+    python scripts/upload_github.py --auto
+
+--auto is for the scheduled 30-minute refresh: the commit message is
+generated, and when the branch tip is itself an earlier [auto] commit the
+new commit REPLACES it (same parent, force update) instead of stacking on
+top -- forty-eight data snapshots a day would otherwise grow the repository
+without bound. A manual commit is never replaced.
 
 Builds one commit that mirrors the project (minus raw/backup data, which
 exceeds GitHub's 100 MB file limit) and points the default branch at it,
@@ -15,6 +22,7 @@ from __future__ import annotations
 
 import base64
 import fnmatch
+import hashlib
 import json
 import os
 import subprocess
@@ -108,7 +116,17 @@ def collect() -> list[str]:
 
 
 def main() -> int:
-    message = sys.argv[1] if len(sys.argv) > 1 else "Update from local working tree"
+    args = [a for a in sys.argv[1:] if a != "--auto"]
+    auto = "--auto" in sys.argv[1:]
+    if args:
+        message = args[0]
+    elif auto:
+        message = ("[auto] data update "
+                   + __import__("datetime").datetime.now(
+                       __import__("datetime").timezone.utc
+                   ).isoformat(timespec="seconds"))
+    else:
+        message = "Update from local working tree"
     user, token = credential()
 
     who = request("GET", f"{API}/user", token).get("login", "?")
@@ -123,9 +141,22 @@ def main() -> int:
     print(f"[upload] {len(files)} files, {total / 1e6:.1f} MB")
 
     parents = []
+    force = False
+    head_tree = None
     try:
         ref = request("GET", f"{API}/repos/{OWNER}/{REPO}/git/ref/heads/{branch}", token)
-        parents = [ref["object"]["sha"]]
+        head_sha = ref["object"]["sha"]
+        parents = [head_sha]
+        if auto:
+            head = request("GET", f"{API}/repos/{OWNER}/{REPO}/git/commits/{head_sha}",
+                           token)
+            head_tree = head.get("tree", {}).get("sha")
+            if head.get("message", "").startswith("[auto]"):
+                # Replace the previous auto snapshot instead of stacking a new
+                # commit on it; manual commits always stay in history.
+                parents = [p["sha"] for p in head.get("parents", [])]
+                force = True
+                print("[upload] auto mode: replacing the previous [auto] snapshot")
     except urllib.error.HTTPError as e:
         if e.code not in (404, 409):       # 409: "Git Repository is empty"
             raise
@@ -162,12 +193,21 @@ def main() -> int:
             reused += 1
         else:
             with open(path, "rb") as fh:
-                content = base64.b64encode(fh.read()).decode()
-            blob = request("POST", f"{API}/repos/{OWNER}/{REPO}/git/blobs", token,
-                           {"content": content, "encoding": "base64"})
-            sha = blob["sha"]
+                data = fh.read()
+            # A rebuild often rewrites a file byte-identical (only the mtime
+            # moves). Git blob ids are content hashes, so compute one locally
+            # and skip the upload when the repository already has that blob.
+            local = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+            if hit and hit["sha"] == local:
+                sha = local
+                reused += 1
+            else:
+                content = base64.b64encode(data).decode()
+                blob = request("POST", f"{API}/repos/{OWNER}/{REPO}/git/blobs", token,
+                               {"content": content, "encoding": "base64"})
+                sha = blob["sha"]
+                print(f"[upload]   {rel} ({st.st_size / 1e3:.0f} KB)")
             cache[rel] = {"size": st.st_size, "mtime": int(st.st_mtime), "sha": sha}
-            print(f"[upload]   {rel} ({st.st_size / 1e3:.0f} KB)")
         tree.append({"path": rel, "mode": "100644", "type": "blob", "sha": sha})
     if reused:
         print(f"[upload] {reused} unchanged file(s) reused without re-upload")
@@ -176,6 +216,11 @@ def main() -> int:
     # locally disappear from the repo too instead of lingering forever.
     new_tree = request("POST", f"{API}/repos/{OWNER}/{REPO}/git/trees", token,
                        {"tree": tree})
+    if auto and head_tree and new_tree["sha"] == head_tree:
+        with open(CACHE, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh)
+        print("[upload] no changes since the last upload -- nothing to do")
+        return 0
     commit = request("POST", f"{API}/repos/{OWNER}/{REPO}/git/commits", token,
                      {"message": message, "tree": new_tree["sha"], "parents": parents})
 
@@ -183,9 +228,9 @@ def main() -> int:
     # the just-created commit replicates on GitHub's side; retry briefly.
     for attempt in range(3):
         try:
-            if parents:
+            if parents or force:
                 request("PATCH", f"{API}/repos/{OWNER}/{REPO}/git/refs/heads/{branch}",
-                        token, {"sha": commit["sha"], "force": False})
+                        token, {"sha": commit["sha"], "force": force})
             else:
                 request("POST", f"{API}/repos/{OWNER}/{REPO}/git/refs", token,
                         {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})

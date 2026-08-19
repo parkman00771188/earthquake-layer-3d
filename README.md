@@ -184,25 +184,25 @@ ISC 지연이 약 20개월이므로 **반년에 한 번쯤** 실행하면 충분
 수집은 **1년 단위로 체크포인트**를 남깁니다. 중간에 끊겨도 최대 1년치만 다시 받으면 되고,
 `--resume`이 정확히 그 지점부터 이어갑니다. 실행 기록은 `data/raw/update_history.log`에 쌓입니다.
 
-### 자동 갱신 등록 (Windows 작업 스케줄러)
-
-매일 오전 6시에 자동 갱신:
+### 자동 갱신 + 자동 배포 (30분마다)
 
 ```
-schtasks /create /tn "JapanQuake4D Update" /sc daily /st 06:00 ^
-  /tr "python \"G:\claude\earthquake\scripts\update.py\""
+auto_update_start.bat      켜기  — 지금부터 30분마다 갱신 → GitHub 업로드 → 웹 반영
+auto_update_stop.bat       끄기  — 등록된 자동 갱신 제거
 ```
 
-확인 / 즉시 실행 / 삭제:
+`auto_update_start.bat`을 한 번 실행하면 Windows 작업 스케줄러에 등록되어, **컴퓨터가
+켜져 있고 로그인되어 있는 동안** 30분마다 조용히(창 없이) 다음을 수행합니다:
 
-```
-schtasks /query /tn "JapanQuake4D Update"
-schtasks /run   /tn "JapanQuake4D Update"
-schtasks /delete /tn "JapanQuake4D Update" /f
-```
+1. 일본 + 전세계 데이터 갱신 (`update_global.bat auto`)
+2. GitHub 업로드 → 몇 분 뒤 웹사이트 반영
 
-> 스케줄러에는 `update.bat` 대신 `scripts\update.py`를 직접 등록하세요.
-> `update.bat`은 사람이 직접 실행할 때를 위해 마지막에 창을 붙잡아 둡니다.
+진행 상황은 `data\raw\auto_update.log` 에 기록됩니다. 자동 업로드는 `[auto]` 커밋
+하나를 계속 덮어쓰는 방식이라 저장소 용량이 무한히 늘지 않으며, 변경이 없으면
+업로드 자체를 건너뜁니다. 직접 만든 커밋(`upload.bat`)은 절대 덮어쓰지 않습니다.
+
+재부팅 후에도 등록은 유지됩니다(로그인하면 다시 30분 주기로 동작).
+끄고 싶을 때 `auto_update_stop.bat`을 실행하면 됩니다.
 
 ---
 

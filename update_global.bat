@@ -46,7 +46,9 @@ echo.
 echo --- [3/3] what changed -----------------------------
 %PY% scripts\global_changes.py
 
-%PY% scripts\archive_raw.py
+rem The 30-minute auto runner skips the raw-data backups: re-gzipping and
+rem re-uploading ~100 MB every half hour is pure waste. Manual runs keep them.
+if not "%1"=="auto" %PY% scripts\archive_raw.py
 
 echo.
 echo [ok] Japan + worldwide data updated. Reload the page with Ctrl+F5.

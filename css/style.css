@@ -147,6 +147,45 @@ body.globe-mode .jp-only { display: none !important; }
 .loader-msg {
   margin-top: 12px; font: 400 11px/1.5 var(--mono); color: var(--ink-faint);
 }
+.loader-pct {
+  font: 650 30px/1 var(--sans); color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+  margin-bottom: 12px;
+}
+
+/* ── worldwide-data loading card ───────────────────────────── */
+/* The globe streams ~60 MB after the page itself is up; a bare status line
+   is easy to miss, so the download gets a proper centred card. */
+#globe-loader {
+  position: fixed; z-index: 40; left: 50%; top: 44%;
+  transform: translate(-50%, -50%);
+  width: min(300px, 78vw); padding: 18px 20px 16px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 14px; backdrop-filter: blur(14px);
+  text-align: center; pointer-events: none;
+}
+.gl-spin {
+  width: 22px; height: 22px; margin: 0 auto 10px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .14); border-top-color: var(--accent);
+  animation: gl-rot .8s linear infinite;
+}
+@keyframes gl-rot { to { transform: rotate(360deg); } }
+#globe-loader.error .gl-spin { display: none; }
+.gl-text { font: 550 12.5px/1.5 var(--sans); color: var(--ink); }
+.gl-text span {
+  display: block; margin-top: 3px;
+  font: 400 10.5px/1.4 var(--mono); color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.gl-bar {
+  height: 3px; margin-top: 11px;
+  background: rgba(255, 255, 255, .1); border-radius: 2px; overflow: hidden;
+}
+.gl-bar i {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent-dk), var(--accent));
+  transition: width .2s ease;
+}
 
 /* ── UI text scale ─────────────────────────────────────────── */
 /* Zoom scales each chrome panel and its own coordinate space, so the map

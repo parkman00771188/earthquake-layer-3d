@@ -340,6 +340,31 @@ function stripsToSegments(strips, radius, material) {
   return new THREE.LineSegments(geo, material);
 }
 
+/** Fetch a binary streaming byte counts out, so a progress bar can move. */
+async function getBuffer(url, onBytes) {
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
+  if (!res.body) {
+    const buf = await res.arrayBuffer();
+    onBytes?.(buf.byteLength);
+    return buf;
+  }
+  const chunks = [];
+  let read = 0;
+  const reader = res.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    read += value.length;
+    onBytes?.(value.length);
+  }
+  const out = new Uint8Array(read);
+  let at = 0;
+  for (const c of chunks) { out.set(c, at); at += c.length; }
+  return out.buffer;
+}
+
 /** k-way merge of the per-band files into one time-sorted cloud. */
 function mergeBands(buffers) {
   const bands = buffers.map((buf) => {
@@ -437,7 +462,20 @@ export class GlobeView {
     if (this.loading) return this.loading;
     this.loading = (async () => {
       const say = (t) => { if (statusEl) { statusEl.hidden = !t; statusEl.textContent = t; } };
+      // The header line is easy to miss; the centred card is the real signal.
+      const card = document.getElementById('globe-loader');
+      const cardDetail = document.getElementById('gl-detail');
+      const cardFill = document.getElementById('gl-fill');
+      const cardShow = (on) => { if (card) card.hidden = !on; };
+      const cardProgress = (read, total) => {
+        if (!card) return;
+        const pct = total ? Math.min(100, (read / total) * 100) : 0;
+        cardDetail.textContent =
+          `${(read / 1e6).toFixed(1)} / ${(total / 1e6).toFixed(0)} MB (${Math.round(pct)}%)`;
+        cardFill.style.width = `${pct.toFixed(1)}%`;
+      };
       try {
+        cardShow(true);
         say(t('전세계 데이터 불러오는 중…'));
         this.meta = await (await fetch('data/global/meta.json', { cache: 'no-cache' })).json();
 
@@ -461,23 +499,35 @@ export class GlobeView {
           this.scene.add(this.coast, this.plates);
         });
 
+        const total = this.meta.bands.reduce((s, b) => s + (b.bytes ?? 0), 0);
+        let read = 0;
+        cardProgress(0, total);
         const buffers = [];
-        let got = 0;
         for (const band of this.meta.bands) {
-          say(`${t('전세계 데이터 불러오는 중…')} ${got}/${this.meta.bands.length} · `
-            + count(this.meta.count));
-          buffers.push(await (await fetch(`data/global/${band.path}`, { cache: 'no-cache' })).arrayBuffer());
-          got++;
+          say(`${t('전세계 데이터 불러오는 중…')} ${count(this.meta.count)}`);
+          buffers.push(await getBuffer(`data/global/${band.path}`, (n) => {
+            read += n;
+            cardProgress(read, total);
+          }));
         }
         say(t('전세계 지진 병합 중…'));
+        if (cardDetail) cardDetail.textContent = t('전세계 지진 병합 중…');
+        // Yield a frame so the merge message paints before the busy loop.
+        await new Promise((r) => requestAnimationFrame(r));
         this.layer = new GlobeLayer(mergeBands(buffers), shared, timeSpanDays);
         if (this.hh) this.layer.uniforms.uHalfHeight.value = this.hh;
         this.scene.add(this.layer.points);
         say('');
+        cardShow(false);
         onReady?.();
       } catch (err) {
         console.error('globe data failed to load:', err);
         say(t('전세계 데이터를 불러오지 못했습니다. update_global.bat 로 생성하세요.'));
+        if (card) {
+          card.classList.add('error');
+          cardDetail.textContent =
+            t('전세계 데이터를 불러오지 못했습니다. update_global.bat 로 생성하세요.');
+        }
       }
     })();
     return this.loading;

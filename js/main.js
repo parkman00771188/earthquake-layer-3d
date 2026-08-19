@@ -57,6 +57,7 @@ async function boot() {
   try {
     data = await loadData((msg, frac) => {
       $('loader-msg').textContent = msg;
+      $('loader-pct').textContent = `${Math.round(frac * 100)}%`;
       $('loader-fill').style.width = `${(frac * 100).toFixed(1)}%`;
     });
   } catch (err) {

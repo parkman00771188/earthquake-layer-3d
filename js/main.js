@@ -424,6 +424,7 @@ class App {
       this.useGlobeData(false);
       this.recenter();
     }
+    this.refreshUpdatedAgo();
     this.dirty = true;
   }
 
@@ -470,6 +471,7 @@ class App {
   refreshTexts() {
     document.title = `${t(this.view === 'globe' ? '전세계 지진' : '일본 주변 지진')} 4D`;
     $('app-title').textContent = t(this.view === 'globe' ? '전세계 지진' : '일본 주변 지진');
+    this.refreshUpdatedAgo();
     // Bounce the controls that own dynamic labels through their handlers.
     for (const id of ['in-window', 'in-glow']) {
       $(id).dispatchEvent(new Event('input', { bubbles: true }));
@@ -740,6 +742,7 @@ class App {
 
   /** First arrival of the worldwide cloud: apply the current panel state. */
   onGlobeReady() {
+    this.refreshUpdatedAgo();
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
     this.globe.setOceanVisible($('ck-ocean').checked);
@@ -1310,6 +1313,25 @@ class App {
     this.dirty = true;
   }
 
+  /**
+   * "Updated N min ago" for whichever catalogue is on screen. The pill used
+   * to show a build date and a refresh icon; with the half-hourly auto
+   * update, freshness-at-a-glance is the useful part.
+   */
+  refreshUpdatedAgo() {
+    const iso = this.view === 'globe'
+      ? this.globe?.meta?.generated_utc
+      : this.meta?.generated_utc;
+    const el = $('m-update-txt');
+    if (!iso) { el.textContent = ''; return; }
+    const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60000));
+    el.textContent =
+      mins < 1 ? t('방금 전')
+        : mins < 60 ? `${mins}${t('분 전')}`
+          : mins < 2880 ? `${Math.floor(mins / 60)}${t('시간 전')}`
+            : `${Math.floor(mins / 1440)}${t('일 전')}`;
+  }
+
   fillMeta() {
     const m = this.meta;
     $('meta-span').textContent =
@@ -1326,8 +1348,9 @@ class App {
       + `${t('수록')}: ${m.time_start.slice(0, 10)} ~ ${m.time_end.slice(0, 10)}
 `
       + `${t('갱신')}: ${(m.generated_utc ?? '').replace('T', ' ').slice(0, 16)} UTC`;
-    const built = (m.generated_utc ?? '').slice(2, 10).replace(/-/g, '.');
-    if (built) $('m-update-txt').textContent = built;
+    this.refreshUpdatedAgo();
+    // Keep the "updated N min ago" pill honest while the tab stays open.
+    this.agoTimer ??= setInterval(() => this.refreshUpdatedAgo(), 30000);
     $('head-sub').textContent = isc
       ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`

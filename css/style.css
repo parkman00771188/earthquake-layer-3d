@@ -200,15 +200,12 @@ body.globe-mode .jp-only { display: none !important; }
 #m-update:hover { border-color: rgba(53, 214, 245, .5); color: var(--ink); }
 /* the collapsed panel frees the right edge, minus room for its grab handle */
 body.panel-collapsed #m-update { right: 46px; }
-#m-update svg { width: 13px; height: 13px; }
 #m-update-txt { font-variant-numeric: tabular-nums; }
 #m-update i {
   width: 6px; height: 6px; border-radius: 50%;
   background: #35d07f; box-shadow: 0 0 6px rgba(53, 208, 127, .8);
 }
-#m-update.busy svg { animation: m-spin 1s linear infinite; }
 #m-update.busy i { background: #ffb454; box-shadow: 0 0 6px rgba(255, 180, 84, .8); }
-@keyframes m-spin { to { transform: rotate(360deg); } }
 
 .readout { display: flex; gap: 18px; margin: 14px 0 0; }
 .readout div { margin: 0; }
@@ -1052,7 +1049,6 @@ input[type=checkbox]:checked::after {
      tightens up rather than dropping its label. */
   @media (max-width: 400px) {
     #m-update { padding: 5px 8px; font-size: 9.5px; gap: 4px; }
-    #m-update svg { width: 11px; height: 11px; }
     #m-update i { width: 5px; height: 5px; }
   }
 

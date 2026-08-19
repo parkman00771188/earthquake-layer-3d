@@ -30,7 +30,13 @@ const DICT = {
   '최대': { en: 'Max', ja: '最大' },
   '일본': { en: 'Japan', ja: '日本' },
   '전세계': { en: 'World', ja: '世界' },
-  '업데이트': { en: 'Update', ja: '更新' },
+  '업데이트': { en: 'Updated', ja: '更新' },
+  // Relative "updated N ago" units. The en values carry their own leading
+  // space so `${n}${t('분 전')}` reads "5 min ago" / "5분 전" / "5分前".
+  '방금 전': { en: 'just now', ja: 'たった今' },
+  '분 전': { en: ' min ago', ja: '分前' },
+  '시간 전': { en: ' hr ago', ja: '時間前' },
+  '일 전': { en: ' days ago', ja: '日前' },
   '메뉴': { en: 'Menu', ja: 'メニュー' },
   '보기 범위': { en: 'View', ja: '表示範囲' },
   '최대 규모': { en: 'Max magnitude', ja: '最大規模' },

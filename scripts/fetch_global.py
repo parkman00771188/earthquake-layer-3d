@@ -32,6 +32,11 @@ MIN_MAG = 2.0
 PAGE = 20000
 FIELDS = ["time", "latitude", "longitude", "depth", "mag", "id"]
 
+# How far back the live tail is refetched on every run. ComCat keeps revising
+# recent solutions and late arrivals land days after the event, so the last
+# stretch of the catalogue is dropped and fetched again rather than trusted.
+REWIND_DAYS = 7
+
 # Two independently-resumable stretches. The historic one (centennial/PDE-era
 # solutions, sparse) was added after the modern one finished, so it lives in
 # its own files rather than forcing a refetch of everything.
@@ -47,6 +52,34 @@ def log(msg: str) -> None:
 
 def iso(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def row_time(raw: str) -> datetime | None:
+    """Timestamp of a cached CSV row, or None when it cannot be read."""
+    try:
+        dt = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def truncate_from(catalog: str, cutoff: datetime) -> int:
+    """Drop rows at or after cutoff, rewriting in place; returns rows kept."""
+    if not os.path.exists(catalog):
+        return 0
+    tmp = catalog + ".tmp"
+    kept = 0
+    with open(catalog, newline="", encoding="utf-8") as src,             open(tmp, "w", newline="", encoding="utf-8") as dst:
+        writer = csv.DictWriter(dst, fieldnames=FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        for row in csv.DictReader(src):
+            t = row_time(row.get("time", ""))
+            if t is not None and t >= cutoff:
+                continue
+            writer.writerow(row)
+            kept += 1
+    os.replace(tmp, catalog)
+    return kept
 
 
 def fetch_window(a: datetime, b: datetime) -> list[dict] | None:
@@ -78,8 +111,20 @@ def run_segment(seg_start: str, seg_end: str | None,
         with open(state_path, encoding="utf-8") as fh:
             state.update(json.load(fh))
     if state.get("done"):
-        log(f"[global] {catalog_name} already complete ({state['rows']:,} rows)")
-        return True
+        if seg_end is not None:
+            log(f"[global] {catalog_name} already complete ({state['rows']:,} rows)")
+            return True
+        # The open-ended segment is never actually finished -- "done" only ever
+        # meant it had caught up with the clock. Rewind past the live tail and
+        # refetch it, or the catalogue would stay frozen at the old cursor.
+        cutoff = max(
+            datetime.fromisoformat(state["cursor"]).replace(tzinfo=timezone.utc)
+            - timedelta(days=REWIND_DAYS),
+            datetime.fromisoformat(seg_start).replace(tzinfo=timezone.utc))
+        kept = truncate_from(catalog, cutoff)
+        state.update(cursor=iso(cutoff), rows=kept, done=False)
+        log(f"[global] live tail resumes at {iso(cutoff)[:10]} "
+            f"({REWIND_DAYS}d rewind, {kept:,} rows kept)")
 
     fresh_file = not os.path.exists(catalog) or os.path.getsize(catalog) == 0
     out = open(catalog, "a", newline="", encoding="utf-8")

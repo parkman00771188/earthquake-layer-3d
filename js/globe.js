@@ -439,7 +439,7 @@ export class GlobeView {
       const say = (t) => { if (statusEl) { statusEl.hidden = !t; statusEl.textContent = t; } };
       try {
         say(t('전세계 데이터 불러오는 중…'));
-        this.meta = await (await fetch('data/global/meta.json')).json();
+        this.meta = await (await fetch('data/global/meta.json', { cache: 'no-cache' })).json();
 
         if (this.meta.land?.path) {
           new THREE.TextureLoader().load(`data/global/${this.meta.land.path}`, (tex) => {
@@ -452,7 +452,7 @@ export class GlobeView {
           });
         }
 
-        fetch('data/global/basemap.json').then((r) => r.json()).then((bm) => {
+        fetch('data/global/basemap.json', { cache: 'no-cache' }).then((r) => r.json()).then((bm) => {
           const mat = (color, opacity) => new THREE.LineBasicMaterial({
             color, transparent: true, opacity, depthWrite: false,
           });
@@ -466,7 +466,7 @@ export class GlobeView {
         for (const band of this.meta.bands) {
           say(`${t('전세계 데이터 불러오는 중…')} ${got}/${this.meta.bands.length} · `
             + count(this.meta.count));
-          buffers.push(await (await fetch(`data/global/${band.path}`)).arrayBuffer());
+          buffers.push(await (await fetch(`data/global/${band.path}`, { cache: 'no-cache' })).arrayBuffer());
           got++;
         }
         say(t('전세계 지진 병합 중…'));

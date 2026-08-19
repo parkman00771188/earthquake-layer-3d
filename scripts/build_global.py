@@ -16,7 +16,7 @@ data/global/:
 
 Binary layout per file: u32 magic 'GQ1\\0', u32 count, then contiguous arrays
 Float32 lon | Float32 lat | Float32 depth | Float32 mag | Uint32 t(sec since
-1975-01-01). Events are time-ascending inside each band.
+1900-01-01). Events are time-ascending inside each band.
 """
 
 from __future__ import annotations
@@ -253,7 +253,7 @@ def main() -> int:
         "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": "USGS ANSS ComCat (M2.0+) + ISC Bulletin (M3.0+), worldwide, deduplicated",
         "sources": sources,
-        "epoch": "1975-01-01T00:00:00Z",
+        "epoch": "1900-01-01T00:00:00Z",
         "count": total,
         "time_end_seconds": int(max(times)) if times else 0,
         "bands": infos,

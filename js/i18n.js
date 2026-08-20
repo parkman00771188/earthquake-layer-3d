@@ -141,6 +141,16 @@ const DICT = {
   '행정 경계': { en: 'Admin borders', ja: '行政境界' },
   '(도·현)': { en: '(prefectures)', ja: '(県)' },
   '판 경계': { en: 'Plate boundaries', ja: 'プレート境界' },
+  '활성 단층': { en: 'Active faults', ja: '活断層' },
+  '전세계 활성단층 데이터베이스 — 지도의 단층 선': {
+    en: 'Global active fault database — the fault lines on the map',
+    ja: '世界活断層データベース — 地図の断層線',
+  },
+  '새 데이터 있음': { en: 'New data', ja: '新データあり' },
+  '클릭하면 새 데이터로 새로고침합니다': {
+    en: 'Click to reload with the new data',
+    ja: 'クリックで新しいデータに更新します',
+  },
   '깊이 상자 · 격자': { en: 'Depth box & grid', ja: '深さボックス・格子' },
   '면 채우기는 Natural Earth 육지 마스크, 위성사진은 NASA Blue Marble 영상입니다.': {
     en: 'Flat fill uses the Natural Earth land mask; satellite imagery is NASA Blue Marble.',

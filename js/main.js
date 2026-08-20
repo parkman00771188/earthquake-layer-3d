@@ -45,7 +45,8 @@ const SAVED_INPUTS = [
   'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
   'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
   ...Array.from({ length: 10 }, (_, i) => `ck-band-${i + 1}`),
-  'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-box', 'ck-ocean',
+  'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-faults', 'ck-box',
+  'ck-ocean',
   'ck-spin', 'ck-loop',
   'sel-speed',
 ];
@@ -746,6 +747,7 @@ class App {
   /** First arrival of the worldwide cloud: apply the current panel state. */
   onGlobeReady() {
     this.refreshUpdatedAgo();
+    this.globe.setFaultsVisible($('ck-faults').checked);
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
     this.globe.setOceanVisible($('ck-ocean').checked);
@@ -1208,6 +1210,11 @@ class App {
       this.globe?.setPlatesVisible(on);
       this.dirty = true;
     });
+    check('ck-faults', (on) => {
+      this.ref.setFaultsVisible(on);
+      this.globe?.setFaultsVisible(on);
+      this.dirty = true;
+    });
 
     /* map layer: off / flat fill / satellite imagery */
     seg($('seg-mapstyle'), (v) => {
@@ -1316,6 +1323,21 @@ class App {
     this.dirty = true;
   }
 
+  /** Light the pill up when the published payload is newer than ours. */
+  async checkForNewData() {
+    try {
+      const r = await fetch(`data/meta.json?fresh=${Date.now()}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const m = await r.json();
+      if (!m.generated_utc || !this.meta?.generated_utc) return;
+      if (m.generated_utc <= this.meta.generated_utc) return;
+      const btn = $('m-update');
+      btn.classList.add('fresh');
+      btn.title = t('클릭하면 새 데이터로 새로고침합니다');
+      $('m-update-lab').textContent = t('새 데이터 있음');
+    } catch { /* offline; try again next tick */ }
+  }
+
   /**
    * "Updated N min ago" for whichever catalogue is on screen. The pill used
    * to show a build date and a refresh icon; with the half-hourly auto
@@ -1354,6 +1376,9 @@ class App {
     this.refreshUpdatedAgo();
     // Keep the "updated N min ago" pill honest while the tab stays open.
     this.agoTimer ??= setInterval(() => this.refreshUpdatedAgo(), 30000);
+    // The site republishes itself every half hour; a page that stays open
+    // should say so instead of silently counting the old payload's age up.
+    this.freshTimer ??= setInterval(() => this.checkForNewData(), 300000);
     $('head-sub').textContent = isc
       ? `M${isc.mag_min.toFixed(1)}+ · ${m.time_start.slice(0, 4)}–`
         + `${m.time_end.slice(0, 4)} · ISC(JMA) + USGS`

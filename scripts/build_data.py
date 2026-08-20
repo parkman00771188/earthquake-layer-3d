@@ -42,6 +42,7 @@ RAW = os.path.join(DATA, "raw")
 CATALOG = os.path.join(RAW, "catalog.csv")
 COASTLINE = os.path.join(RAW, "ne_coastline.geojson")
 PLATES = os.path.join(RAW, "plates.json")
+FAULTS = os.path.join(RAW, "gem_active_faults.geojson")
 LAST_CHANGES = os.path.join(RAW, "last_changes.json")
 
 # Map layer inputs (optional -- the viewer degrades gracefully without them).
@@ -508,11 +509,12 @@ def write_basemap(cfg: dict, path: str) -> dict:
 
     coast = build_polylines(COASTLINE, box, SIMPLIFY_TOLERANCE)
     plates = build_polylines(PLATES, box, SIMPLIFY_TOLERANCE * 2)
+    faults = build_polylines(FAULTS, box, SIMPLIFY_TOLERANCE)
     admin = build_polylines(ADMIN1, box, SIMPLIFY_TOLERANCE * 1.5)
     borders = build_polylines(BORDERS, box, SIMPLIFY_TOLERANCE * 1.5)
 
     payload = {"bbox": list(box), "coast": coast, "plates": plates,
-               "admin": admin, "borders": borders}
+               "admin": admin, "borders": borders, "faults": faults}
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, separators=(",", ":"))
 
@@ -522,6 +524,7 @@ def write_basemap(cfg: dict, path: str) -> dict:
     log(f"[build] basemap.json: coast {len(coast)}/{pts(coast)}pts, "
         f"plates {len(plates)}/{pts(plates)}pts, admin {len(admin)}/{pts(admin)}pts, "
         f"borders {len(borders)}/{pts(borders)}pts, "
+        f"faults {len(faults)}/{pts(faults)}pts, "
         f"{os.path.getsize(path) / 1e6:.2f} MB")
     return {"coast_strips": len(coast), "coast_points": pts(coast),
             "plate_strips": len(plates), "plate_points": pts(plates),

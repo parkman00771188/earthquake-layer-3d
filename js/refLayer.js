@@ -67,6 +67,10 @@ export class RefLayer {
     this.plates = stripsToSegments(basemap.plates ?? [], proj, 0.014, mat(0xff8a3d, 0.85));
     if (this.plates) this.group.add(this.plates);
 
+    // ── active faults (GEM) ──────────────────────────────────
+    this.faults = stripsToSegments(basemap.faults ?? [], proj, 0.011, mat(0xe0566e, 0.6));
+    if (this.faults) { this.faults.visible = false; this.group.add(this.faults); }
+
     // ── graticule + depth cage ───────────────────────────────
     this.cage = new THREE.Group();
     this.cage.add(...this.buildCage(mat));
@@ -231,6 +235,7 @@ export class RefLayer {
 
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
+  setFaultsVisible(on) { if (this.faults) this.faults.visible = on; }
   setCageVisible(on) { this.cage.visible = on; }
 
   setAdminVisible(on) {

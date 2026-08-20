@@ -496,7 +496,9 @@ export class GlobeView {
           });
           this.coast = stripsToSegments(bm.coast ?? [], R * 1.001, mat(0x8fa9c6, 0.3));
           this.plates = stripsToSegments(bm.plates ?? [], R * 1.003, mat(0xff8a3d, 0.55));
-          this.scene.add(this.coast, this.plates);
+          this.faults = stripsToSegments(bm.faults ?? [], R * 1.002, mat(0xe0566e, 0.5));
+          this.faults.visible = this.faultsOn ?? false;
+          this.scene.add(this.coast, this.plates, this.faults);
         });
 
         const total = this.meta.bands.reduce((s, b) => s + (b.bytes ?? 0), 0);
@@ -667,6 +669,12 @@ export class GlobeView {
 
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
+
+  setFaultsVisible(on) {
+    // The basemap streams in after the bands; remember the wish either way.
+    this.faultsOn = on;
+    if (this.faults) this.faults.visible = on;
+  }
   setLandOpacity(v) { this.landMaterial.opacity = v; }
   setActive(on) { this.controls.enabled = on; }
 

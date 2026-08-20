@@ -37,6 +37,7 @@ ISC_CATALOGS = ["isc_catalog_1900.csv", "isc_catalog.csv"]
 CATALOG = os.path.join(RAW, "catalog.csv")     # existence gate for main()
 COAST = os.path.join(ROOT, "data", "raw", "ne_coastline.geojson")
 PLATES = os.path.join(ROOT, "data", "raw", "plates.json")
+FAULTS = os.path.join(ROOT, "data", "raw", "gem_active_faults.geojson")
 LAND = os.path.join(ROOT, "data", "raw", "ne_10m_land.geojson")
 LAKES = os.path.join(ROOT, "data", "raw", "ne_10m_lakes.geojson")
 OUT = os.path.join(ROOT, "data", "global")
@@ -225,12 +226,15 @@ def main() -> int:
 
     coast = strips_from_geojson(COAST, COAST_TOL_DEG)
     plates = strips_from_geojson(PLATES, 0.0)
-    basemap = {"coast": coast, "plates": plates}
+    # GEM Global Active Faults; a light tolerance keeps the added weight small.
+    faults = (strips_from_geojson(FAULTS, 0.05)
+              if os.path.exists(FAULTS) else [])
+    basemap = {"coast": coast, "plates": plates, "faults": faults}
     with open(os.path.join(OUT, "basemap.json"), "w", encoding="utf-8") as fh:
         json.dump(basemap, fh, separators=(",", ":"))
     npts = sum(len(s) // 2 for s in coast)
     log(f"[global] basemap.json: {len(coast)} coast strips ({npts:,} pts), "
-        f"{len(plates)} plate strips")
+        f"{len(plates)} plate strips, {len(faults)} fault strips")
 
     # Monthly histogram across every band, for the timeline seek bar.
     from datetime import timedelta

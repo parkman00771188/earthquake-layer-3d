@@ -43,6 +43,7 @@ CATALOG = os.path.join(RAW, "catalog.csv")
 COASTLINE = os.path.join(RAW, "ne_coastline.geojson")
 PLATES = os.path.join(RAW, "plates.json")
 FAULTS = os.path.join(RAW, "gem_active_faults.geojson")
+VOLCANOES = os.path.join(RAW, "volcanoes.geojson")
 LAST_CHANGES = os.path.join(RAW, "last_changes.json")
 
 # Map layer inputs (optional -- the viewer degrades gracefully without them).
@@ -503,18 +504,42 @@ def build_polylines(path: str, box, tol: float) -> list[list[float]]:
     return out
 
 
+def read_volcanoes(path: str, box) -> list[list]:
+    """[lon, lat, name] per Holocene volcano inside the region box."""
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        gj = json.load(fh)
+    xmin, ymin, xmax, ymax = box
+    out = []
+    for ft in gj.get("features", []):
+        g = ft.get("geometry") or {}
+        if g.get("type") != "Point":
+            continue
+        lon, lat = g["coordinates"][:2]
+        if not (xmin <= lon <= xmax and ymin <= lat <= ymax):
+            continue
+        name = (ft.get("properties") or {}).get("Volcano_Name", "")
+        out.append([round(float(lon), 3), round(float(lat), 3), name])
+    return out
+
+
 def write_basemap(cfg: dict, path: str) -> dict:
     r = cfg["region"]
     box = (r["minlongitude"], r["minlatitude"], r["maxlongitude"], r["maxlatitude"])
 
     coast = build_polylines(COASTLINE, box, SIMPLIFY_TOLERANCE)
     plates = build_polylines(PLATES, box, SIMPLIFY_TOLERANCE * 2)
-    faults = build_polylines(FAULTS, box, SIMPLIFY_TOLERANCE)
+    # Fault traces are the wiggliest layer on the map; a quarter of the
+    # basemap tolerance (~200 m) keeps their character.
+    faults = build_polylines(FAULTS, box, SIMPLIFY_TOLERANCE * 0.05)
     admin = build_polylines(ADMIN1, box, SIMPLIFY_TOLERANCE * 1.5)
     borders = build_polylines(BORDERS, box, SIMPLIFY_TOLERANCE * 1.5)
 
+    volcanoes = read_volcanoes(VOLCANOES, box)
     payload = {"bbox": list(box), "coast": coast, "plates": plates,
-               "admin": admin, "borders": borders, "faults": faults}
+               "admin": admin, "borders": borders, "faults": faults,
+               "volcanoes": volcanoes}
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, separators=(",", ":"))
 
@@ -525,6 +550,7 @@ def write_basemap(cfg: dict, path: str) -> dict:
         f"plates {len(plates)}/{pts(plates)}pts, admin {len(admin)}/{pts(admin)}pts, "
         f"borders {len(borders)}/{pts(borders)}pts, "
         f"faults {len(faults)}/{pts(faults)}pts, "
+        f"volcanoes {len(volcanoes)}, "
         f"{os.path.getsize(path) / 1e6:.2f} MB")
     return {"coast_strips": len(coast), "coast_points": pts(coast),
             "plate_strips": len(plates), "plate_points": pts(plates),

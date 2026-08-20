@@ -7,6 +7,9 @@
  */
 
 import * as THREE from 'three';
+import { LineMaterial } from '../vendor/lines/LineMaterial.js';
+import { LineSegments2 } from '../vendor/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from '../vendor/lines/LineSegmentsGeometry.js';
 import { graticuleStep, ticks } from './projection.js';
 
 /** Flat [lon,lat,...] strips -> one LineSegments at height y. */
@@ -28,6 +31,33 @@ function stripsToSegments(strips, proj, y, material) {
   return new THREE.LineSegments(geo, material);
 }
 
+/**
+ * Same flattening, but as width-adjustable "fat" lines. WebGL ignores
+ * LineBasicMaterial.linewidth on every desktop platform, so any layer with a
+ * user-facing thickness slider has to go through LineSegments2 instead.
+ */
+function stripsToFat(strips, proj, y, color, opacity, width) {
+  let segs = 0;
+  for (const s of strips) segs += s.length / 2 - 1;
+  if (segs <= 0) return null;
+
+  const pos = new Float32Array(segs * 6);
+  let k = 0;
+  for (const s of strips) {
+    for (let i = 0; i + 3 < s.length; i += 2) {
+      pos[k++] = proj.x(s[i]);     pos[k++] = y; pos[k++] = proj.z(s[i + 1]);
+      pos[k++] = proj.x(s[i + 2]); pos[k++] = y; pos[k++] = proj.z(s[i + 3]);
+    }
+  }
+  const geo = new LineSegmentsGeometry();
+  geo.setPositions(pos);
+  const mat = new LineMaterial({
+    color, transparent: true, opacity, depthWrite: false,
+    linewidth: width, worldUnits: false,
+  });
+  return new LineSegments2(geo, mat);
+}
+
 function segmentsFromPoints(points, material) {
   const pos = new Float32Array(points.length * 3);
   points.forEach((p, i) => { pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z; });
@@ -37,6 +67,39 @@ function segmentsFromPoints(points, material) {
 }
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+/** Small triangle sprite -- the map-legend shorthand for a volcano. */
+function volcanoTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.beginPath();
+  g.moveTo(32, 8); g.lineTo(58, 54); g.lineTo(6, 54); g.closePath();
+  g.fillStyle = '#fff';
+  g.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.NoColorSpace;
+  return tex;
+}
+
+/** [lon,lat,name] rows -> screen-size triangle points. */
+function volcanoPoints(rows, toPos, size) {
+  if (!rows.length) return null;
+  const pos = new Float32Array(rows.length * 3);
+  rows.forEach((r, i) => {
+    const p = toPos(r[0], r[1]);
+    pos[i * 3] = p[0]; pos[i * 3 + 1] = p[1]; pos[i * 3 + 2] = p[2];
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    map: volcanoTexture(), color: 0xff6a3d, size, sizeAttenuation: false,
+    transparent: true, opacity: 0.9, alphaTest: 0.3, depthWrite: false,
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.visible = false;
+  return pts;
+}
 
 export class RefLayer {
   constructor(basemap, proj, meta, onTextureReady) {
@@ -53,7 +116,7 @@ export class RefLayer {
     // ── administrative boundaries ────────────────────────────
     // Under the coastline in the stacking order and much dimmer: context, not
     // content. Prefecture/province lines are what make it read as a map.
-    this.admin = stripsToSegments(basemap.admin ?? [], proj, 0.004, mat(0x7d93ad, 0.3));
+    this.admin = stripsToFat(basemap.admin ?? [], proj, 0.004, 0x7d93ad, 0.3, 1);
     if (this.admin) this.group.add(this.admin);
     this.borders = stripsToSegments(basemap.borders ?? [], proj, 0.006, mat(0xa8b6c8, 0.42));
     if (this.borders) this.group.add(this.borders);
@@ -64,12 +127,17 @@ export class RefLayer {
 
     // ── plate boundaries ─────────────────────────────────────
     // Lifted a hair above the surface so it never z-fights the coastline.
-    this.plates = stripsToSegments(basemap.plates ?? [], proj, 0.014, mat(0xff8a3d, 0.85));
+    this.plates = stripsToFat(basemap.plates ?? [], proj, 0.014, 0xff8a3d, 0.85, 1);
     if (this.plates) this.group.add(this.plates);
 
     // ── active faults (GEM) ──────────────────────────────────
-    this.faults = stripsToSegments(basemap.faults ?? [], proj, 0.011, mat(0xe0566e, 0.6));
+    this.faults = stripsToFat(basemap.faults ?? [], proj, 0.011, 0xe0566e, 0.65, 1);
     if (this.faults) { this.faults.visible = false; this.group.add(this.faults); }
+
+    // ── Holocene volcanoes (Smithsonian GVP) ─────────────────
+    this.volcanoes = volcanoPoints(basemap.volcanoes ?? [],
+      (lon, lat) => [proj.x(lon), 0.02, proj.z(lat)], 13);
+    if (this.volcanoes) this.group.add(this.volcanoes);
 
     // ── graticule + depth cage ───────────────────────────────
     this.cage = new THREE.Group();
@@ -236,6 +304,20 @@ export class RefLayer {
   setCoastVisible(on) { if (this.coast) this.coast.visible = on; }
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
   setFaultsVisible(on) { if (this.faults) this.faults.visible = on; }
+  setVolcanoesVisible(on) { if (this.volcanoes) this.volcanoes.visible = on; }
+
+  /** kind: 'plates' | 'faults' | 'admin'; width in CSS pixels. */
+  setLineWidth(kind, width) {
+    const obj = this[kind];
+    if (obj) obj.material.linewidth = width;
+  }
+
+  /** Fat-line materials need the viewport size to convert px to clip space. */
+  setResolution(w, h) {
+    for (const obj of [this.admin, this.plates, this.faults]) {
+      obj?.material.resolution.set(w, h);
+    }
+  }
   setCageVisible(on) { this.cage.visible = on; }
 
   setAdminVisible(on) {

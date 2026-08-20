@@ -137,6 +137,11 @@
           <a href="https://github.com/GEMScienceTools/gem-global-active-faults" target="_blank" rel="noopener">GEMScienceTools ↗</a>
         </li>
         <li>
+          <b>Smithsonian GVP</b>
+          <span data-i18n="전지구 화산활동 프로그램 — 홀로세 화산 위치">전지구 화산활동 프로그램 — 홀로세 화산 위치</span>
+          <a href="https://volcano.si.edu/" target="_blank" rel="noopener">volcano.si.edu ↗</a>
+        </li>
+        <li>
           <b>Natural Earth</b>
           <span data-i18n="해안선·판 경계·육지 마스크">해안선·판 경계·육지 마스크</span>
           <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">naturalearthdata.com ↗</a>
@@ -394,8 +399,24 @@
         <label class="jp-only"><input type="checkbox" id="ck-admin" checked> <span data-i18n="행정 경계">행정 경계</span> <em data-i18n="(도·현)">(도·현)</em></label>
         <label><input type="checkbox" id="ck-plates"> <span data-i18n="판 경계">판 경계</span></label>
         <label><input type="checkbox" id="ck-faults"> <span data-i18n="활성 단층">활성 단층</span></label>
+        <label><input type="checkbox" id="ck-volcano"> <span data-i18n="화산">화산</span></label>
         <label class="jp-only"><input type="checkbox" id="ck-box" checked> <span data-i18n="깊이 상자 · 격자">깊이 상자 · 격자</span></label>
       </div>
+      <label class="row">
+        <span data-i18n="판 경계 굵기">판 경계 굵기</span>
+        <output id="out-lw-plates">1</output>
+        <input type="range" id="in-lw-plates" min="0.5" max="4" step="0.25" value="1">
+      </label>
+      <label class="row">
+        <span data-i18n="활성 단층 굵기">활성 단층 굵기</span>
+        <output id="out-lw-faults">1</output>
+        <input type="range" id="in-lw-faults" min="0.5" max="4" step="0.25" value="1">
+      </label>
+      <label class="row jp-only">
+        <span data-i18n="행정 경계 굵기">행정 경계 굵기</span>
+        <output id="out-lw-admin">1</output>
+        <input type="range" id="in-lw-admin" min="0.5" max="4" step="0.25" value="1">
+      </label>
       <p class="hint jp-only" id="land-hint"></p>
     </section>
 

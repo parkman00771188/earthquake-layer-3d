@@ -44,6 +44,7 @@ const SAVED_INPUTS = [
   'in-mag-lo', 'in-mag-hi', 'in-depth-lo', 'in-depth-hi',
   'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
   'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
+  'in-lw-plates', 'in-lw-faults', 'in-lw-admin', 'ck-volcano',
   ...Array.from({ length: 10 }, (_, i) => `ck-band-${i + 1}`),
   'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-faults', 'ck-box',
   'ck-ocean',
@@ -381,6 +382,7 @@ class App {
     this.camera.aspect = w / h;
     this.recenter();
     this.quakes.setViewportHeight(h * this.renderer.getPixelRatio());
+    this.ref.setResolution(w, h);
     this.marker.setPixelRatio(this.renderer.getPixelRatio());
     this.globe?.marker.setPixelRatio(this.renderer.getPixelRatio());
     this.globe?.resize(w, h, this.renderer.getPixelRatio());
@@ -748,6 +750,7 @@ class App {
   onGlobeReady() {
     this.refreshUpdatedAgo();
     this.globe.setFaultsVisible($('ck-faults').checked);
+    this.globe.setVolcanoesVisible($('ck-volcano').checked);
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
     this.globe.setOceanVisible($('ck-ocean').checked);
@@ -1215,6 +1218,20 @@ class App {
       this.globe?.setFaultsVisible(on);
       this.dirty = true;
     });
+    check('ck-volcano', (on) => {
+      this.ref.setVolcanoesVisible(on);
+      this.globe?.setVolcanoesVisible(on);
+      this.dirty = true;
+    });
+    const lineWidth = (id, kind, out) => slider(id, (v) => {
+      $(out).textContent = String(v);
+      this.ref.setLineWidth(kind, v);
+      this.globe?.setLineWidth(kind, v);
+      this.dirty = true;
+    });
+    lineWidth('in-lw-plates', 'plates', 'out-lw-plates');
+    lineWidth('in-lw-faults', 'faults', 'out-lw-faults');
+    lineWidth('in-lw-admin', 'admin', 'out-lw-admin');
 
     /* map layer: off / flat fill / satellite imagery */
     seg($('seg-mapstyle'), (v) => {

@@ -38,6 +38,7 @@ CATALOG = os.path.join(RAW, "catalog.csv")     # existence gate for main()
 COAST = os.path.join(ROOT, "data", "raw", "ne_coastline.geojson")
 PLATES = os.path.join(ROOT, "data", "raw", "plates.json")
 FAULTS = os.path.join(ROOT, "data", "raw", "gem_active_faults.geojson")
+VOLCANOES = os.path.join(ROOT, "data", "raw", "volcanoes.geojson")
 LAND = os.path.join(ROOT, "data", "raw", "ne_10m_land.geojson")
 LAKES = os.path.join(ROOT, "data", "raw", "ne_10m_lakes.geojson")
 OUT = os.path.join(ROOT, "data", "global")
@@ -175,6 +176,23 @@ def write_band(key: str, events: list) -> dict:
     return {"key": key, "path": f"quakes-{key}.bin", "count": n, "bytes": size}
 
 
+def read_volcanoes(path: str) -> list[list]:
+    """[lon, lat, name] per Holocene volcano (Smithsonian GVP dump)."""
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        gj = json.load(fh)
+    out = []
+    for ft in gj.get("features", []):
+        g = ft.get("geometry") or {}
+        if g.get("type") != "Point":
+            continue
+        lon, lat = g["coordinates"][:2]
+        name = (ft.get("properties") or {}).get("Volcano_Name", "")
+        out.append([round(float(lon), 3), round(float(lat), 3), name])
+    return out
+
+
 def strips_from_geojson(path: str, tol: float) -> list[list[float]]:
     with open(path, encoding="utf-8") as fh:
         gj = json.load(fh)
@@ -226,15 +244,19 @@ def main() -> int:
 
     coast = strips_from_geojson(COAST, COAST_TOL_DEG)
     plates = strips_from_geojson(PLATES, 0.0)
-    # GEM Global Active Faults; a light tolerance keeps the added weight small.
-    faults = (strips_from_geojson(FAULTS, 0.05)
+    # GEM Global Active Faults. 0.012 deg (~1.3 km) keeps essentially all of
+    # the source's shape; the earlier 0.05 threw away half the vertices.
+    faults = (strips_from_geojson(FAULTS, 0.012)
               if os.path.exists(FAULTS) else [])
-    basemap = {"coast": coast, "plates": plates, "faults": faults}
+    volcanoes = read_volcanoes(VOLCANOES)
+    basemap = {"coast": coast, "plates": plates, "faults": faults,
+               "volcanoes": volcanoes}
     with open(os.path.join(OUT, "basemap.json"), "w", encoding="utf-8") as fh:
         json.dump(basemap, fh, separators=(",", ":"))
     npts = sum(len(s) // 2 for s in coast)
     log(f"[global] basemap.json: {len(coast)} coast strips ({npts:,} pts), "
-        f"{len(plates)} plate strips, {len(faults)} fault strips")
+        f"{len(plates)} plate strips, {len(faults)} fault strips, "
+        f"{len(volcanoes)} volcanoes")
 
     # Monthly histogram across every band, for the timeline seek bar.
     from datetime import timedelta

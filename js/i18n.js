@@ -142,6 +142,14 @@ const DICT = {
   '(도·현)': { en: '(prefectures)', ja: '(県)' },
   '판 경계': { en: 'Plate boundaries', ja: 'プレート境界' },
   '활성 단층': { en: 'Active faults', ja: '活断層' },
+  '화산': { en: 'Volcanoes', ja: '火山' },
+  '전지구 화산활동 프로그램 — 홀로세 화산 위치': {
+    en: 'Global Volcanism Program — Holocene volcano locations',
+    ja: '全地球火山活動プログラム — 完新世の火山位置',
+  },
+  '판 경계 굵기': { en: 'Plate line width', ja: 'プレート境界の太さ' },
+  '활성 단층 굵기': { en: 'Fault line width', ja: '活断層の太さ' },
+  '행정 경계 굵기': { en: 'Border line width', ja: '行政境界の太さ' },
   '전세계 활성단층 데이터베이스 — 지도의 단층 선': {
     en: 'Global active fault database — the fault lines on the map',
     ja: '世界活断層データベース — 地図の断層線',

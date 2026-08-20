@@ -20,6 +20,9 @@ import {
 } from './palette.js';
 import { FILTER_EPS } from './quakeLayer.js';
 import { count, t } from './i18n.js';
+import { LineMaterial } from '../vendor/lines/LineMaterial.js';
+import { LineSegments2 } from '../vendor/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from '../vendor/lines/LineSegmentsGeometry.js';
 
 const R = 10;                        // globe radius, world units
 const KM2U = R / 6371;               // km of depth -> world units, before exag
@@ -316,6 +319,70 @@ function latLonSphere(radius, segLon = 128, segLat = 64) {
   return geo;
 }
 
+/** Small triangle sprite -- the map-legend shorthand for a volcano. */
+function volcanoTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.beginPath();
+  g.moveTo(32, 8); g.lineTo(58, 54); g.lineTo(6, 54); g.closePath();
+  g.fillStyle = '#fff';
+  g.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.NoColorSpace;
+  return tex;
+}
+
+/** [lon,lat,name] rows -> screen-size triangle points on the sphere. */
+function volcanoPoints(rows, radius, size) {
+  if (!rows.length) return null;
+  const pos = new Float32Array(rows.length * 3);
+  rows.forEach((r, i) => {
+    const la = (r[1] * Math.PI) / 180;
+    const lo = (r[0] * Math.PI) / 180;
+    const c = Math.cos(la);
+    pos[i * 3] = radius * c * Math.cos(lo);
+    pos[i * 3 + 1] = radius * Math.sin(la);
+    pos[i * 3 + 2] = -radius * c * Math.sin(lo);
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    map: volcanoTexture(), color: 0xff6a3d, size, sizeAttenuation: false,
+    transparent: true, opacity: 0.9, alphaTest: 0.3, depthWrite: false,
+  });
+  return new THREE.Points(geo, mat);
+}
+
+/** Sphere-surface strips as width-adjustable fat lines (see refLayer.js). */
+function stripsToFat(strips, radius, color, opacity, width) {
+  let segs = 0;
+  for (const s of strips) segs += s.length / 2 - 1;
+  const pos = new Float32Array(segs * 6);
+  let k = 0;
+  const put = (lon, lat) => {
+    const la = (lat * Math.PI) / 180;
+    const lo = (lon * Math.PI) / 180;
+    const c = Math.cos(la);
+    pos[k++] = radius * c * Math.cos(lo);
+    pos[k++] = radius * Math.sin(la);
+    pos[k++] = -radius * c * Math.sin(lo);
+  };
+  for (const s of strips) {
+    for (let i = 0; i + 3 < s.length; i += 2) {
+      put(s[i], s[i + 1]);
+      put(s[i + 2], s[i + 3]);
+    }
+  }
+  const geo = new LineSegmentsGeometry();
+  geo.setPositions(pos);
+  const mat = new LineMaterial({
+    color, transparent: true, opacity, depthWrite: false,
+    linewidth: width, worldUnits: false,
+  });
+  return new LineSegments2(geo, mat);
+}
+
 function stripsToSegments(strips, radius, material) {
   let segs = 0;
   for (const s of strips) segs += s.length / 2 - 1;
@@ -495,9 +562,20 @@ export class GlobeView {
             color, transparent: true, opacity, depthWrite: false,
           });
           this.coast = stripsToSegments(bm.coast ?? [], R * 1.001, mat(0x8fa9c6, 0.3));
-          this.plates = stripsToSegments(bm.plates ?? [], R * 1.003, mat(0xff8a3d, 0.55));
-          this.faults = stripsToSegments(bm.faults ?? [], R * 1.002, mat(0xe0566e, 0.5));
+          this.plates = stripsToFat(bm.plates ?? [], R * 1.003, 0xff8a3d, 0.55,
+            this.lw?.plates ?? 1);
+          this.faults = stripsToFat(bm.faults ?? [], R * 1.002, 0xe0566e, 0.55,
+            this.lw?.faults ?? 1);
           this.faults.visible = this.faultsOn ?? false;
+          if (this.res) {
+            this.plates.material.resolution.set(...this.res);
+            this.faults.material.resolution.set(...this.res);
+          }
+          this.volcanoes = volcanoPoints(bm.volcanoes ?? [], R * 1.004, 11);
+          if (this.volcanoes) {
+            this.volcanoes.visible = this.volcanoesOn ?? false;
+            this.scene.add(this.volcanoes);
+          }
           this.scene.add(this.coast, this.plates, this.faults);
         });
 
@@ -675,6 +753,25 @@ export class GlobeView {
     this.faultsOn = on;
     if (this.faults) this.faults.visible = on;
   }
+
+  setVolcanoesVisible(on) {
+    this.volcanoesOn = on;
+    if (this.volcanoes) this.volcanoes.visible = on;
+  }
+
+  /** kind: 'plates' | 'faults'; width in CSS pixels. */
+  setLineWidth(kind, width) {
+    (this.lw ??= {})[kind] = width;
+    const obj = this[kind];
+    if (obj?.material.linewidth !== undefined) obj.material.linewidth = width;
+  }
+
+  setResolution(w, h) {
+    this.res = [w, h];
+    for (const kind of ['plates', 'faults']) {
+      this[kind]?.material.resolution?.set(w, h);
+    }
+  }
   setLandOpacity(v) { this.landMaterial.opacity = v; }
   setActive(on) { this.controls.enabled = on; }
 
@@ -729,6 +826,7 @@ export class GlobeView {
   }
 
   resize(w, h, pixelRatio = 1) {
+    this.setResolution(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     if (this.layer) this.layer.uniforms.uHalfHeight.value = (h * pixelRatio) / 2;

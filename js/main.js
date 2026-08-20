@@ -44,7 +44,7 @@ const SAVED_INPUTS = [
   'in-mag-lo', 'in-mag-hi', 'in-depth-lo', 'in-depth-hi',
   'in-exag', 'in-size', 'in-sharp', 'in-opacity', 'in-land',
   'in-msize-all', ...Array.from({ length: 10 }, (_, i) => `in-msize-${i + 1}`),
-  'in-lw-plates', 'in-lw-faults', 'in-lw-admin', 'ck-volcano',
+  'in-lw-plates', 'in-lw-faults', 'in-lw-admin', 'in-vsize', 'ck-volcano',
   ...Array.from({ length: 10 }, (_, i) => `ck-band-${i + 1}`),
   'ck-additive', 'ck-coast', 'ck-admin', 'ck-plates', 'ck-faults', 'ck-box',
   'ck-ocean',
@@ -753,6 +753,7 @@ class App {
     this.refreshUpdatedAgo();
     this.globe.setFaultsVisible($('ck-faults').checked);
     this.globe.setVolcanoesVisible($('ck-volcano').checked);
+    this.globe.setVolcanoSize(+$('in-vsize').value);
     this.globe.setCoastVisible($('ck-coast').checked);
     this.globe.setPlatesVisible($('ck-plates').checked);
     this.globe.setOceanVisible($('ck-ocean').checked);
@@ -1234,6 +1235,12 @@ class App {
     lineWidth('in-lw-plates', 'plates', 'out-lw-plates');
     lineWidth('in-lw-faults', 'faults', 'out-lw-faults');
     lineWidth('in-lw-admin', 'admin', 'out-lw-admin');
+    slider('in-vsize', (v) => {
+      $('out-vsize').textContent = String(v);
+      this.ref.setVolcanoSize(v);
+      this.globe?.setVolcanoSize(v);
+      this.dirty = true;
+    });
 
     /* map layer: off / flat fill / satellite imagery */
     seg($('seg-mapstyle'), (v) => {
@@ -1602,7 +1609,8 @@ class App {
     const p = new THREE.Vector3();
     const camPos = cam.position;
     let best = null;
-    let bestD = 18 * 18;                 // px^2 tolerance, matches icon size
+    const tol = Math.max(12, (obj.material.size ?? 20) * 0.7);
+    let bestD = tol * tol;               // px^2 tolerance follows icon size
     for (let i = 0; i < pos.count; i++) {
       p.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
       // On the globe, markers around the far side are hidden by the body.

@@ -68,15 +68,19 @@ function segmentsFromPoints(points, material) {
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-/** The colour emoji glyph, so the marker reads as an actual volcano. */
+/** Geologic-map volcano symbol: an outlined red triangle. */
 function volcanoTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 96;
   const g = c.getContext('2d');
-  g.font = '76px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText('\u{1F30B}', 48, 54);
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(48, 14); g.lineTo(86, 82); g.lineTo(10, 82); g.closePath();
+  g.fillStyle = 'rgba(255, 45, 70, 0.30)';
+  g.fill();
+  g.strokeStyle = '#ff2d46';
+  g.lineWidth = 9;
+  g.stroke();
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -136,8 +140,9 @@ export class RefLayer {
 
     // ── Holocene volcanoes (Smithsonian GVP) ─────────────────
     this.volcanoRows = basemap.volcanoes ?? [];
+    this.volcanoBase = 24;
     this.volcanoes = volcanoPoints(this.volcanoRows,
-      (lon, lat) => [proj.x(lon), 0.02, proj.z(lat)], 26);
+      (lon, lat) => [proj.x(lon), 0.02, proj.z(lat)], this.volcanoBase);
     if (this.volcanoes) this.group.add(this.volcanoes);
 
     // ── graticule + depth cage ───────────────────────────────
@@ -306,6 +311,9 @@ export class RefLayer {
   setPlatesVisible(on) { if (this.plates) this.plates.visible = on; }
   setFaultsVisible(on) { if (this.faults) this.faults.visible = on; }
   setVolcanoesVisible(on) { if (this.volcanoes) this.volcanoes.visible = on; }
+  setVolcanoSize(mult) {
+    if (this.volcanoes) this.volcanoes.material.size = this.volcanoBase * mult;
+  }
 
   /** kind: 'plates' | 'faults' | 'admin'; width in CSS pixels. */
   setLineWidth(kind, width) {

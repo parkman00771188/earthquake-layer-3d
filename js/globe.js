@@ -319,15 +319,19 @@ function latLonSphere(radius, segLon = 128, segLat = 64) {
   return geo;
 }
 
-/** The colour emoji glyph, so the marker reads as an actual volcano. */
+/** Geologic-map volcano symbol: an outlined red triangle. */
 function volcanoTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 96;
   const g = c.getContext('2d');
-  g.font = '76px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText('\u{1F30B}', 48, 54);
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(48, 14); g.lineTo(86, 82); g.lineTo(10, 82); g.closePath();
+  g.fillStyle = 'rgba(255, 45, 70, 0.30)';
+  g.fill();
+  g.strokeStyle = '#ff2d46';
+  g.lineWidth = 9;
+  g.stroke();
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -572,7 +576,9 @@ export class GlobeView {
             this.faults.material.resolution.set(...this.res);
           }
           this.volcanoRows = bm.volcanoes ?? [];
-          this.volcanoes = volcanoPoints(this.volcanoRows, R * 1.004, 22);
+          this.volcanoBase = 20;
+          this.volcanoes = volcanoPoints(this.volcanoRows, R * 1.004,
+            this.volcanoBase * (this.vsize ?? 1));
           if (this.volcanoes) {
             this.volcanoes.visible = this.volcanoesOn ?? false;
             this.scene.add(this.volcanoes);
@@ -758,6 +764,11 @@ export class GlobeView {
   setVolcanoesVisible(on) {
     this.volcanoesOn = on;
     if (this.volcanoes) this.volcanoes.visible = on;
+  }
+
+  setVolcanoSize(mult) {
+    this.vsize = mult;
+    if (this.volcanoes) this.volcanoes.material.size = this.volcanoBase * mult;
   }
 
   /** kind: 'plates' | 'faults'; width in CSS pixels. */

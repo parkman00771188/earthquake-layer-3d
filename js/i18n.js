@@ -155,6 +155,7 @@ const DICT = {
   '판 경계 굵기': { en: 'Plate line width', ja: 'プレート境界の太さ' },
   '활성 단층 굵기': { en: 'Fault line width', ja: '活断層の太さ' },
   '행정 경계 굵기': { en: 'Border line width', ja: '行政境界の太さ' },
+  '화산 크기': { en: 'Volcano size', ja: '火山の大きさ' },
   '전세계 활성단층 데이터베이스 — 지도의 단층 선': {
     en: 'Global active fault database — the fault lines on the map',
     ja: '世界活断層データベース — 地図の断層線',

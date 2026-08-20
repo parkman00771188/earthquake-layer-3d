@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-08-20T01:14:57+00:00",
+  "generated_utc": "2026-08-20T09:31:13+00:00",
   "sources": {
     "isc": {
       "name": "ISC Bulletin (includes JMA)",
@@ -8,7 +8,7 @@
     },
     "usgs": {
       "name": "USGS ANSS ComCat",
-      "minmagnitude": 3.0,
+      "minmagnitude": 1.5,
       "attribution": "USGS Earthquake Hazards Program (public domain)"
     }
   },
@@ -22,10 +22,17 @@
       "mag_min": 1.93
     },
     {
+      "source": "jma",
+      "count": 702,
+      "first": "2026-07-21T14:55:00Z",
+      "last": "2026-08-20T08:48:00Z",
+      "mag_min": 1.5
+    },
+    {
       "source": "usgs",
-      "count": 2916,
+      "count": 2919,
       "first": "2024-10-01T05:20:02.055000Z",
-      "last": "2026-08-19T11:43:27.209000Z",
+      "last": "2026-08-20T05:28:41.414000Z",
       "mag_min": 3.2
     }
   ],
@@ -39,64 +46,64 @@
   "projection": {
     "reference_latitude": 35.0
   },
-  "minmagnitude": 1.93,
-  "count": 1236573,
+  "minmagnitude": 1.5,
+  "count": 1237278,
   "epoch": "1900-01-01T00:00:00Z",
   "time_start": "1900-01-18T07:46:00Z",
-  "time_end": "2026-08-19T11:43:27.209000Z",
-  "t_max_seconds": 3996128607,
-  "mag_min": 1.93,
+  "time_end": "2026-08-20T08:48:00Z",
+  "t_max_seconds": 3996204480,
+  "mag_min": 1.5,
   "mag_max": 9.09,
   "depth_min": 0.0,
   "depth_max": 700.0,
   "binary": {
-    "bytes": 35860633,
+    "bytes": 35881078,
     "header_bytes": 16,
     "arrays": {
       "lon": {
         "offset": 16,
         "type": "Float32",
-        "length": 1236573
+        "length": 1237278
       },
       "lat": {
-        "offset": 4946308,
+        "offset": 4949128,
         "type": "Float32",
-        "length": 1236573
+        "length": 1237278
       },
       "depth": {
-        "offset": 9892600,
+        "offset": 9898240,
         "type": "Float32",
-        "length": 1236573
+        "length": 1237278
       },
       "mag": {
-        "offset": 14838892,
+        "offset": 14847352,
         "type": "Float32",
-        "length": 1236573
+        "length": 1237278
       },
       "t": {
-        "offset": 19785184,
+        "offset": 19796464,
         "type": "Uint32",
-        "length": 1236573
+        "length": 1237278
       },
       "place": {
-        "offset": 24731476,
+        "offset": 24745576,
         "type": "Uint16",
-        "length": 1236573
+        "length": 1237278
       },
       "magType": {
-        "offset": 27204622,
+        "offset": 27220132,
         "type": "Uint16",
-        "length": 1236573
+        "length": 1237278
       },
       "extId": {
-        "offset": 29677768,
+        "offset": 29694688,
         "type": "Uint32",
-        "length": 1236573
+        "length": 1237278
       },
       "src": {
-        "offset": 34624060,
+        "offset": 34643800,
         "type": "Uint8",
-        "length": 1236573
+        "length": 1237278
       }
     }
   },
@@ -121,10 +128,10 @@
   },
   "last_update": {
     "available": true,
-    "run_utc": "2026-08-20T01:06:14+00:00",
+    "run_utc": "2026-08-20T09:30:59+00:00",
     "mode": "incremental",
     "counts": {
-      "fetched": 136,
+      "fetched": 135,
       "added": 0,
       "revised": 0,
       "removed": 0,
@@ -1654,8 +1661,8 @@
       168,
       129,
       122,
-      117,
-      48
+      490,
+      380
     ]
   }
 }

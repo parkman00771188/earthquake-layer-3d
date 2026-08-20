@@ -44,6 +44,7 @@ COASTLINE = os.path.join(RAW, "ne_coastline.geojson")
 PLATES = os.path.join(RAW, "plates.json")
 FAULTS = os.path.join(RAW, "gem_active_faults.geojson")
 VOLCANOES = os.path.join(RAW, "volcanoes.geojson")
+JMA_CATALOG = os.path.join(RAW, "jma_catalog.csv")
 LAST_CHANGES = os.path.join(RAW, "last_changes.json")
 
 # Map layer inputs (optional -- the viewer degrades gracefully without them).
@@ -157,13 +158,9 @@ def parse_iso(value: str) -> datetime:
 # events
 # --------------------------------------------------------------------------- #
 
-def read_events() -> list[dict]:
-    if not os.path.exists(CATALOG):
-        sys.exit(f"missing {CATALOG} -- run scripts/fetch_quakes.py first")
-
-    events = []
+def read_catalog_file(path: str, events: list[dict]) -> int:
     skipped = 0
-    with open(CATALOG, "r", encoding="utf-8", newline="") as fh:
+    with open(path, "r", encoding="utf-8", newline="") as fh:
         for row in csv.DictReader(fh):
             try:
                 ev = {
@@ -181,10 +178,50 @@ def read_events() -> list[dict]:
                 skipped += 1
                 continue
             events.append(ev)
+    return skipped
+
+
+def dedup_jma(events: list[dict]) -> int:
+    """
+    Drop JMA rows that duplicate a USGS/ISC solution of the same quake:
+    within 20 s and ~0.5 degrees. The established catalogue keeps priority so
+    ids (and their agency links) stay stable; JMA contributes what only it
+    has -- the small recent events.
+    """
+    removed = 0
+    win: list[dict] = []
+    keep = []
+    for e in events:                      # events are time-sorted
+        while win and (e["t"] - win[0]["t"]).total_seconds() > 20:
+            win.pop(0)
+        if e["source"] == "jma" and any(
+                w["source"] != "jma"
+                and abs(w["lat"] - e["lat"]) <= 0.5
+                and abs(w["lon"] - e["lon"]) <= 0.7
+                for w in win):
+            removed += 1
+            continue
+        win.append(e)
+        keep.append(e)
+    events[:] = keep
+    return removed
+
+
+def read_events() -> list[dict]:
+    if not os.path.exists(CATALOG):
+        sys.exit(f"missing {CATALOG} -- run scripts/fetch_quakes.py first")
+
+    events: list[dict] = []
+    skipped = read_catalog_file(CATALOG, events)
+    if os.path.exists(JMA_CATALOG):
+        skipped += read_catalog_file(JMA_CATALOG, events)
 
     if skipped:
         log(f"[build] skipped {skipped} unparseable rows")
     events.sort(key=lambda e: (e["t"], e["id"]))
+    removed = dedup_jma(events)
+    if removed:
+        log(f"[build] {removed} JMA rows collapsed into existing solutions")
     return events
 
 
@@ -220,8 +257,8 @@ def build_labels(events: list[dict]) -> dict:
                 src_flag.append(0)
                 ext_id.append(n)
                 continue
-        # Anything else (USGS, or an oversized ISC id) goes in the string table.
-        src_flag.append(1)
+        # Anything else (USGS/JMA, or an oversized ISC id): string table.
+        src_flag.append(2 if e["source"] == "jma" else 1)
         ext_id.append(len(usgs_ids))
         usgs_ids.append(raw.split(":", 1)[-1])
 
@@ -254,7 +291,7 @@ def write_binary(events: list[dict], epoch: datetime, labels: dict, path: str) -
         place   : Uint16  * N   index into labels.tables.places
         magType : Uint16  * N   index into labels.tables.magTypes
         extId   : Uint32  * N   ISC numeric id, or index into labels.tables.usgsIds
-        src     : Uint8   * N   0 = ISC, 1 = USGS  (last: keeps 4-byte alignment)
+        src     : Uint8   * N   0 = ISC, 1 = USGS, 2 = JMA  (last: 4-byte alignment)
     """
     n = len(events)
     blocks = [

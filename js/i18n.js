@@ -161,6 +161,12 @@ const DICT = {
     ja: '世界活断層データベース — 地図の断層線',
   },
   '새 데이터 있음': { en: 'New data', ja: '新データあり' },
+  '새 데이터 적용 중…': { en: 'Applying new data…', ja: '新データを適用中…' },
+  'JMA 속보': { en: 'JMA (quick reports)', ja: '気象庁 (速報)' },
+  '일본 기상청 지진 속보 — 최근 한 달의 일본 소규모 지진(M1.5+)을 반영합니다.': {
+    en: 'JMA quick reports — the last month of small Japanese quakes (M1.5+).',
+    ja: '気象庁の地震速報 — 直近1ヶ月の小規模地震 (M1.5+) を反映します。',
+  },
   '클릭하면 새 데이터로 새로고침합니다': {
     en: 'Click to reload with the new data',
     ja: 'クリックで新しいデータに更新します',

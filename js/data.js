@@ -19,6 +19,7 @@ const DAY = 86400;
 
 const SRC_ISC = 0;
 const SRC_USGS = 1;
+const SRC_JMA = 2;
 
 async function getJSON(url) {
   const res = await fetch(url, { cache: 'no-cache' });
@@ -135,7 +136,8 @@ export async function loadData(onStage) {
 
     placeOf: (i) => places[events.place[i]] ?? '',
     magTypeOf: (i) => magTypes[events.magType[i]] ?? '',
-    sourceOf: (i) => (events.src[i] === SRC_USGS ? 'usgs' : 'isc'),
+    sourceOf: (i) => (events.src[i] === SRC_USGS ? 'usgs'
+      : events.src[i] === SRC_JMA ? 'jma' : 'isc'),
 
     /** Agency page for an event, or null when the id cannot be resolved. */
     urlOf: (i) => {
@@ -143,6 +145,7 @@ export async function loadData(onStage) {
         const id = usgsIds[events.extId[i]];
         return id ? `https://earthquake.usgs.gov/earthquakes/eventpage/${id}` : null;
       }
+      if (events.src[i] === SRC_JMA) return null;   // no stable per-event page
       return 'http://www.isc.ac.uk/cgi-bin/web-db-run?request=COMPREHENSIVE'
         + `&out_format=ISF2&event_id=${events.extId[i]}`;
     },

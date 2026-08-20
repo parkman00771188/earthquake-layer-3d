@@ -120,6 +120,9 @@ def main() -> int:
             print("\n[update] fetch failed -- the previous payload is left untouched.")
             print("[update] rerun with --resume to continue from the last checkpoint.")
             return rc
+        # The JMA quick-report feed fills in Japan's small recent quakes
+        # (M1.5+); a feed hiccup only skips this cycle, never fails it.
+        run("fetch_jma.py", [])
 
     rc = run("build_data.py", [])
     if rc != 0:

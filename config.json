@@ -6,11 +6,9 @@
     "minlongitude": 120,
     "maxlongitude": 152
   },
-
   "catalog": {
     "starttime": "1900-01-01",
     "eventtype": "earthquake",
-
     "_handoff": [
       "Two sources are stitched at this date. ISC's reviewed Bulletin carries the",
       "JMA catalogue (complete to about M2 around Japan) but lags ~20 months, so",
@@ -20,7 +18,6 @@
     ],
     "handoff": "2024-10-01"
   },
-
   "sources": {
     "isc": {
       "name": "ISC Bulletin (includes JMA)",
@@ -41,21 +38,19 @@
       "name": "USGS ANSS ComCat",
       "endpoint": "https://earthquake.usgs.gov/fdsnws/event/1/query",
       "format": "usgs-csv",
-      "minmagnitude": 3.0,
+      "minmagnitude": 1.5,
       "max_events_per_request": 18000,
       "request_timeout_sec": 180,
       "pause_between_requests_sec": 0,
       "attribution": "USGS Earthquake Hazards Program (public domain)"
     }
   },
-
   "update": {
     "overlap_days": 45,
     "retries": 4,
     "handoff_probe_months": 36,
     "handoff_min_small_events": 100
   },
-
   "projection": {
     "reference_latitude": 35.0
   }

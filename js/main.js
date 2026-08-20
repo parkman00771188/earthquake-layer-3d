@@ -1358,10 +1358,13 @@ class App {
       const m = await r.json();
       if (!m.generated_utc || !this.meta?.generated_utc) return;
       if (m.generated_utc <= this.meta.generated_utc) return;
+      // Every panel setting and the camera are persisted, so a reload lands
+      // back exactly where the user was -- with the fresh catalogue.
+      clearInterval(this.freshTimer);
       const btn = $('m-update');
       btn.classList.add('fresh');
-      btn.title = t('클릭하면 새 데이터로 새로고침합니다');
-      $('m-update-lab').textContent = t('새 데이터 있음');
+      $('m-update-lab').textContent = t('새 데이터 적용 중…');
+      setTimeout(() => location.reload(), 1500);
     } catch { /* offline; try again next tick */ }
   }
 
@@ -1413,7 +1416,8 @@ class App {
         + `${m.time_end.slice(0, 4)} · USGS ANSS ComCat`;
 
     const rows = spans.map((s) => {
-      const name = s.source === 'isc' ? t('ISC (JMA 포함)') : 'USGS ComCat';
+      const name = s.source === 'isc' ? t('ISC (JMA 포함)')
+        : s.source === 'jma' ? t('JMA 속보') : 'USGS ComCat';
       return `<div class="kv"><span>${name}</span><b>${count(s.count)} · `
         + `M${s.mag_min.toFixed(1)}+</b></div>`
         + `<div class="kv"><span></span><b>${s.first.slice(0, 10)} → ${s.last.slice(0, 10)}</b></div>`;

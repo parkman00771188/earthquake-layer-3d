@@ -68,17 +68,17 @@ function segmentsFromPoints(points, material) {
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-/** Small triangle sprite -- the map-legend shorthand for a volcano. */
+/** The colour emoji glyph, so the marker reads as an actual volcano. */
 function volcanoTexture() {
   const c = document.createElement('canvas');
-  c.width = c.height = 64;
+  c.width = c.height = 96;
   const g = c.getContext('2d');
-  g.beginPath();
-  g.moveTo(32, 8); g.lineTo(58, 54); g.lineTo(6, 54); g.closePath();
-  g.fillStyle = '#fff';
-  g.fill();
+  g.font = '76px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('\u{1F30B}', 48, 54);
   const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.NoColorSpace;
+  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
@@ -93,8 +93,8 @@ function volcanoPoints(rows, toPos, size) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({
-    map: volcanoTexture(), color: 0xff6a3d, size, sizeAttenuation: false,
-    transparent: true, opacity: 0.9, alphaTest: 0.3, depthWrite: false,
+    map: volcanoTexture(), color: 0xffffff, size, sizeAttenuation: false,
+    transparent: true, alphaTest: 0.15, depthWrite: false,
   });
   const pts = new THREE.Points(geo, mat);
   pts.visible = false;
@@ -135,8 +135,9 @@ export class RefLayer {
     if (this.faults) { this.faults.visible = false; this.group.add(this.faults); }
 
     // ── Holocene volcanoes (Smithsonian GVP) ─────────────────
-    this.volcanoes = volcanoPoints(basemap.volcanoes ?? [],
-      (lon, lat) => [proj.x(lon), 0.02, proj.z(lat)], 13);
+    this.volcanoRows = basemap.volcanoes ?? [];
+    this.volcanoes = volcanoPoints(this.volcanoRows,
+      (lon, lat) => [proj.x(lon), 0.02, proj.z(lat)], 26);
     if (this.volcanoes) this.group.add(this.volcanoes);
 
     // ── graticule + depth cage ───────────────────────────────

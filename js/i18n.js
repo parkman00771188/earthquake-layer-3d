@@ -143,6 +143,11 @@ const DICT = {
   '판 경계': { en: 'Plate boundaries', ja: 'プレート境界' },
   '활성 단층': { en: 'Active faults', ja: '活断層' },
   '화산': { en: 'Volcanoes', ja: '火山' },
+  '국가': { en: 'Country', ja: '国' },
+  '유형': { en: 'Type', ja: 'タイプ' },
+  '해발': { en: 'Elevation', ja: '標高' },
+  '마지막 분화': { en: 'Last eruption', ja: '最終噴火' },
+  '기록 없음': { en: 'None recorded', ja: '記録なし' },
   '전지구 화산활동 프로그램 — 홀로세 화산 위치': {
     en: 'Global Volcanism Program — Holocene volcano locations',
     ja: '全地球火山活動プログラム — 完新世の火山位置',

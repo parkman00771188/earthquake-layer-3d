@@ -188,8 +188,13 @@ def read_volcanoes(path: str) -> list[list]:
         if g.get("type") != "Point":
             continue
         lon, lat = g["coordinates"][:2]
-        name = (ft.get("properties") or {}).get("Volcano_Name", "")
-        out.append([round(float(lon), 3), round(float(lat), 3), name])
+        p = ft.get("properties") or {}
+        out.append([
+            round(float(lon), 3), round(float(lat), 3),
+            p.get("Volcano_Name", ""), p.get("Country", ""),
+            p.get("Primary_Volcano_Type", ""), p.get("Elevation"),
+            p.get("Last_Eruption_Year"), p.get("Volcano_Number"),
+        ])
     return out
 
 

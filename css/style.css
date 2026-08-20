@@ -79,6 +79,37 @@ body.globe-mode .jp-only { display: none !important; }
   font-variant-numeric: tabular-nums;
 }
 
+
+/* ── volcano info card ─────────────────────────────────────── */
+#vcard {
+  position: fixed; z-index: 34;
+  width: min(240px, 80vw); padding: 12px 14px 11px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; backdrop-filter: blur(14px);
+  font: 400 11.5px/1.5 var(--sans); color: var(--ink);
+}
+#vcard .vc-head {
+  font-size: 13px; font-weight: 650; margin: 0 18px 7px 0;
+  display: flex; gap: 6px; align-items: center;
+}
+#vcard .kv {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 2.5px 0; border-top: 1px solid rgba(255, 255, 255, .05);
+}
+#vcard .kv span { color: var(--ink-dim); flex: none; }
+#vcard .kv b { font-weight: 550; text-align: right; }
+#vcard a {
+  display: inline-block; margin-top: 8px;
+  font-size: 10.5px; color: var(--accent); text-decoration: none;
+}
+#vcard a:hover { text-decoration: underline; }
+#vc-close {
+  position: absolute; top: 8px; right: 9px;
+  background: none; border: 0; color: var(--ink-dim);
+  font-size: 12px; cursor: pointer; padding: 2px;
+}
+#vc-close:hover { color: var(--ink); }
+
 /* ── entry gate ────────────────────────────────────────────── */
 #gate {
   position: fixed; inset: 0; z-index: 2000;

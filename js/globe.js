@@ -319,17 +319,17 @@ function latLonSphere(radius, segLon = 128, segLat = 64) {
   return geo;
 }
 
-/** Small triangle sprite -- the map-legend shorthand for a volcano. */
+/** The colour emoji glyph, so the marker reads as an actual volcano. */
 function volcanoTexture() {
   const c = document.createElement('canvas');
-  c.width = c.height = 64;
+  c.width = c.height = 96;
   const g = c.getContext('2d');
-  g.beginPath();
-  g.moveTo(32, 8); g.lineTo(58, 54); g.lineTo(6, 54); g.closePath();
-  g.fillStyle = '#fff';
-  g.fill();
+  g.font = '76px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('\u{1F30B}', 48, 54);
   const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.NoColorSpace;
+  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
@@ -348,8 +348,8 @@ function volcanoPoints(rows, radius, size) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const mat = new THREE.PointsMaterial({
-    map: volcanoTexture(), color: 0xff6a3d, size, sizeAttenuation: false,
-    transparent: true, opacity: 0.9, alphaTest: 0.3, depthWrite: false,
+    map: volcanoTexture(), color: 0xffffff, size, sizeAttenuation: false,
+    transparent: true, alphaTest: 0.15, depthWrite: false,
   });
   return new THREE.Points(geo, mat);
 }
@@ -571,7 +571,8 @@ export class GlobeView {
             this.plates.material.resolution.set(...this.res);
             this.faults.material.resolution.set(...this.res);
           }
-          this.volcanoes = volcanoPoints(bm.volcanoes ?? [], R * 1.004, 11);
+          this.volcanoRows = bm.volcanoes ?? [];
+          this.volcanoes = volcanoPoints(this.volcanoRows, R * 1.004, 22);
           if (this.volcanoes) {
             this.volcanoes.visible = this.volcanoesOn ?? false;
             this.scene.add(this.volcanoes);

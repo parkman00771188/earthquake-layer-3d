@@ -401,6 +401,7 @@ class App {
 
   async setView(v) {
     if (v === this.view) return;
+    $('vcard').hidden = true;
     this.view = v;
     const globeMode = v === 'globe';
     document.body.classList.toggle('globe-mode', globeMode);
@@ -619,6 +620,7 @@ class App {
     /* info popup */
     const info = $('minfo');
     const openInfo = (on) => { info.hidden = !on; if (on) this.fillInfo(); };
+    $('vc-close').addEventListener('click', () => { $('vcard').hidden = true; });
     $('m-info').addEventListener('click', () => openInfo(true));
     $('mi-close').addEventListener('click', () => openInfo(false));
     info.addEventListener('click', (ev) => { if (ev.target === info) openInfo(false); });
@@ -1556,6 +1558,11 @@ class App {
       // Anything beyond a few pixels of travel was an orbit drag, not a click.
       if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 5) return;
 
+      $('vcard').hidden = true;
+      // Volcano markers sit on top of the cloud, so they win the click.
+      const vol = this.pickVolcano(ev.clientX, ev.clientY);
+      if (vol) { this.showVolcanoCard(vol, ev.clientX, ev.clientY); return; }
+
       if (this.view === 'globe') {
         const g = this.globe?.pick(ev.clientX, ev.clientY, this.canvas);
         if (g == null) return;
@@ -1575,6 +1582,64 @@ class App {
       markChip($('view-presets'), () => false);
       this.dirty = true;
     });
+  }
+
+  /**
+   * Nearest visible volcano within a small screen radius, or null. The
+   * volcano sets are tiny (~1.2k worldwide), so a projected linear scan is
+   * cheaper and simpler than any raycaster setup.
+   */
+  pickVolcano(cx, cy) {
+    const onGlobe = this.view === 'globe';
+    const holder = onGlobe ? this.globe : this.ref;
+    const cam = onGlobe ? this.globe?.camera : this.camera;
+    const obj = holder?.volcanoes;
+    if (!obj?.visible || !cam) return null;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const rows = holder.volcanoRows;
+    const pos = obj.geometry.getAttribute('position');
+    const p = new THREE.Vector3();
+    const camPos = cam.position;
+    let best = null;
+    let bestD = 18 * 18;                 // px^2 tolerance, matches icon size
+    for (let i = 0; i < pos.count; i++) {
+      p.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
+      // On the globe, markers around the far side are hidden by the body.
+      if (onGlobe && p.dot(camPos) < p.lengthSq() * 0.9) continue;
+      p.project(cam);
+      if (p.z > 1) continue;
+      const sx = rect.left + (p.x * 0.5 + 0.5) * rect.width;
+      const sy = rect.top + (-p.y * 0.5 + 0.5) * rect.height;
+      const d = (sx - cx) ** 2 + (sy - cy) ** 2;
+      if (d < bestD) { bestD = d; best = rows[i]; }
+    }
+    return best;
+  }
+
+  /** Small popup with the picked volcano's GVP facts, pinned near the click. */
+  showVolcanoCard(row, x, y) {
+    const [, , name, country, type, elev, erupt, num] = row;
+    $('vc-name').textContent = name || '–';
+    $('vc-country').textContent = country || '–';
+    $('vc-type').textContent = type || '–';
+    $('vc-elev').textContent = elev != null ? `${nf.format(elev)} m` : '–';
+    $('vc-erupt').textContent = erupt == null ? t('기록 없음')
+      : erupt < 0 ? `${-erupt} BCE` : String(erupt);
+    const link = $('vc-link');
+    link.hidden = !num;
+    if (num) link.href = `https://volcano.si.edu/volcano.cfm?vn=${num}`;
+
+    const card = $('vcard');
+    card.hidden = false;
+    const z = +getComputedStyle(document.documentElement)
+      .getPropertyValue('--ui-zoom') || 1;
+    const w = card.offsetWidth * z;
+    const h = card.offsetHeight * z;
+    const left = clamp(x + 14, 12, Math.max(12, window.innerWidth - w - 12));
+    const top = clamp(y - h / 2, 12, Math.max(12, window.innerHeight - h - 12));
+    card.style.left = `${left / z}px`;
+    card.style.top = `${top / z}px`;
   }
 
   /**

@@ -1224,6 +1224,7 @@ class App {
     check('ck-volcano', (on) => {
       this.ref.setVolcanoesVisible(on);
       this.globe?.setVolcanoesVisible(on);
+      if (!on) $('vcard').hidden = true;
       this.dirty = true;
     });
     const lineWidth = (id, kind, out) => slider(id, (v) => {
@@ -1568,7 +1569,7 @@ class App {
       $('vcard').hidden = true;
       // Volcano markers sit on top of the cloud, so they win the click.
       const vol = this.pickVolcano(ev.clientX, ev.clientY);
-      if (vol) { this.showVolcanoCard(vol, ev.clientX, ev.clientY); return; }
+      if (vol) { this.showVolcanoCard(vol.row, vol.pos); return; }
 
       if (this.view === 'globe') {
         const g = this.globe?.pick(ev.clientX, ev.clientY, this.canvas);
@@ -1607,26 +1608,28 @@ class App {
     const rows = holder.volcanoRows;
     const pos = obj.geometry.getAttribute('position');
     const p = new THREE.Vector3();
+    const world = new THREE.Vector3();
     const camPos = cam.position;
     let best = null;
+    let bestPos = null;
     const tol = Math.max(12, (obj.material.size ?? 20) * 0.7);
     let bestD = tol * tol;               // px^2 tolerance follows icon size
     for (let i = 0; i < pos.count; i++) {
-      p.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
+      world.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
       // On the globe, markers around the far side are hidden by the body.
-      if (onGlobe && p.dot(camPos) < p.lengthSq() * 0.9) continue;
-      p.project(cam);
+      if (onGlobe && world.dot(camPos) < world.lengthSq() * 0.9) continue;
+      p.copy(world).project(cam);
       if (p.z > 1) continue;
       const sx = rect.left + (p.x * 0.5 + 0.5) * rect.width;
       const sy = rect.top + (-p.y * 0.5 + 0.5) * rect.height;
       const d = (sx - cx) ** 2 + (sy - cy) ** 2;
-      if (d < bestD) { bestD = d; best = rows[i]; }
+      if (d < bestD) { bestD = d; best = rows[i]; bestPos = world.clone(); }
     }
-    return best;
+    return best && { row: best, pos: bestPos };
   }
 
-  /** Small popup with the picked volcano's GVP facts, pinned near the click. */
-  showVolcanoCard(row, x, y) {
+  /** Small popup with the picked volcano's GVP facts, pinned to the marker. */
+  showVolcanoCard(row, anchor) {
     const [, , name, country, type, elev, erupt, num] = row;
     $('vc-name').textContent = name || '–';
     $('vc-country').textContent = country || '–';
@@ -1638,14 +1641,31 @@ class App {
     link.hidden = !num;
     if (num) link.href = `https://volcano.si.edu/volcano.cfm?vn=${num}`;
 
+    this.vcardAnchor = anchor;
+    $('vcard').hidden = false;
+    this.positionVCard();
+  }
+
+  /** Track the marker every frame, exactly like the quake card does. */
+  positionVCard() {
     const card = $('vcard');
-    card.hidden = false;
+    if (card.hidden || !this.vcardAnchor) return;
+    const cam = this.view === 'globe' ? this.globe?.camera : this.camera;
+    if (!cam) return;
+
+    const v = this.vcardAnchor.clone().project(cam);
+    if (v.z > 1) { card.style.visibility = 'hidden'; return; }
+    card.style.visibility = '';
+
     const z = +getComputedStyle(document.documentElement)
       .getPropertyValue('--ui-zoom') || 1;
+    const x = (v.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
     const w = card.offsetWidth * z;
     const h = card.offsetHeight * z;
-    const left = clamp(x + 14, 12, Math.max(12, window.innerWidth - w - 12));
-    const top = clamp(y - h / 2, 12, Math.max(12, window.innerHeight - h - 12));
+    const left = clamp(x - w / 2, 12, Math.max(12, window.innerWidth - w - 12));
+    // Sit just below the triangle so the card never covers its own marker.
+    const top = clamp(y + 24, 12, Math.max(12, window.innerHeight - h - 12));
     card.style.left = `${left / z}px`;
     card.style.top = `${top / z}px`;
   }
@@ -1763,6 +1783,7 @@ class App {
         this.globe.sync(this.quakes, s);
         this.globe.update(dt);
         this.positionCard();
+        this.positionVCard();
         this.renderer.render(this.globe.scene, this.globe.camera);
         return;
       }
@@ -1779,6 +1800,7 @@ class App {
         this.dirty = false;
         this.labels.update(this.camera, this.viewInsets());
         this.positionCard();
+        this.positionVCard();
         this.renderer.render(this.scene, this.camera);
       }
     };

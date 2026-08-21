@@ -1,38 +1,38 @@
 {
-  "generated_utc": "2026-08-20T09:32:15+00:00",
+  "generated_utc": "2026-08-21T00:04:30+00:00",
   "source": "USGS ANSS ComCat (M2.0+) + ISC Bulletin (M3.0+), worldwide, deduplicated",
   "sources": {
-    "usgs_rows": 1578822,
-    "isc_rows": 2088318,
-    "duplicates_removed": 694964
+    "usgs_rows": 1578862,
+    "isc_rows": 2088414,
+    "duplicates_removed": 695003
   },
   "epoch": "1900-01-01T00:00:00Z",
-  "count": 2972176,
-  "time_end_seconds": 3996204838,
+  "count": 2972273,
+  "time_end_seconds": 3996257801,
   "bands": [
     {
       "key": "m2",
       "path": "quakes-m2.bin",
-      "count": 826179,
-      "bytes": 16523588
+      "count": 826201,
+      "bytes": 16524028
     },
     {
       "key": "m3",
       "path": "quakes-m3.bin",
-      "count": 1474891,
-      "bytes": 29497828
+      "count": 1474957,
+      "bytes": 29499148
     },
     {
       "key": "m4",
       "path": "quakes-m4.bin",
-      "count": 563239,
-      "bytes": 11264788
+      "count": 563244,
+      "bytes": 11264888
     },
     {
       "key": "m5",
       "path": "quakes-m5.bin",
-      "count": 107867,
-      "bytes": 2157348
+      "count": 107871,
+      "bytes": 2157428
     }
   ],
   "histogram": {
@@ -1558,7 +1558,7 @@
       5225,
       5331,
       5620,
-      2714
+      2811
     ]
   },
   "land": {

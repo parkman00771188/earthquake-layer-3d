@@ -125,14 +125,25 @@ class App {
     this.saved = store.load();
 
     const T = data.totalDays;
-    const [ra, rb] = sanitizeRange(this.saved.range, T);
+    let [ra, rb] = sanitizeRange(this.saved.range, T);
+    // A saved range/playhead that sat at the catalogue's end meant "through
+    // the latest data", not that exact date -- the catalogue has grown since,
+    // so the end keeps tracking it. Otherwise every reload (including the
+    // half-hourly auto-refresh) would freeze the view at the save date.
+    // Old payloads carry no `total`; within 30 days of the end counts as
+    // "at the end" for them.
+    const savedT = Number.isFinite(this.saved.total) ? this.saved.total : null;
+    const atEnd = (v) => v != null
+      && v >= (savedT != null ? savedT - 0.5 : T - 30);
+    if (Array.isArray(this.saved.range) && atEnd(this.saved.range[1])) rb = T;
+    const savedNow = atEnd(this.saved.now) ? rb : this.saved.now;
     this.state = {
       mode: this.saved.mode ?? 'accumulate',
       windowDays: 365,
       rangeStart: ra,
       rangeEnd: rb,
       // Open on the fully accumulated cloud unless a position was remembered.
-      now: clamp(this.saved.now ?? rb, ra, rb),
+      now: clamp(savedNow ?? rb, ra, rb),
       playing: false,
       speed: 365,
       loop: true,
@@ -290,6 +301,7 @@ class App {
       uiScale: this.state.uiScale,
       range: [this.state.rangeStart, this.state.rangeEnd],
       now: this.state.now,
+      total: this.data.totalDays,
       spanPreset: $('span-presets').querySelector('button.on')?.dataset.span ?? null,
       panelCollapsed: $('panel').classList.contains('collapsed'),
       feedOpen: this.feed?.isOpen ?? true,

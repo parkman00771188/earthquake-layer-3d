@@ -1,1 +1,1 @@
-{"available":true,"run_utc":"2026-08-21T00:03:14+00:00","mode":"incremental","window":["2026-07-06T05:28:41","2026-08-22T00:03:02"],"counts":{"fetched":140,"added":0,"revised":0,"removed":0,"metadata_only":0},"initial_import":false,"truncated":false,"added":[],"revised":[]}
+{"available":true,"run_utc":"2026-08-22T22:03:15+00:00","mode":"incremental","window":["2026-07-08T18:44:57","2026-08-23T22:03:02"],"counts":{"fetched":152,"added":0,"revised":0,"removed":0,"metadata_only":1},"initial_import":false,"truncated":false,"added":[],"revised":[]}
